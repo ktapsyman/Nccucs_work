@@ -3,25 +3,13 @@ import csv
 
 ScoreKeys = ["0~9", "10~19", "20~29", "30~39", "40~49", "50~59", "60~69", "70~79", "80~89", "90~99", "100"]
 
-#Problem 1 ( Cosine Similarity )
-def cosine_similarity(A,B):
-    ### write your code here ###
-	result_value = float()
-	VectorA = np.array(A)
-	VectorB = np.array(B)
-	
-
-	return np.dot(VectorA, VectorB)/(np.linalg.norm(VectorA)*np.linalg.norm(VectorB))
-
-#Problem 2 ( Grades )
-def grades(FilePath):
+def ReadAndProcessScoreFile( FilePath ):
 	DictGrades = dict()
 	TupleGradeList = []
 	
-	with open(FilePath) as ScoreFile:
+	with open(FilePath, 'rb') as ScoreFile:
 		CsvReader = csv.DictReader(ScoreFile, skipinitialspace=True)
 		for Row in CsvReader:
-			print(Row)
 			TupleGradeList.append((Row["Name"], Row["Age"], Row["Score"]))
 			Score = int(Row["Score"])
 			if 0 <= Score and Score < 10:
@@ -93,21 +81,39 @@ def grades(FilePath):
 			else:
 				print("Score out of range! Score : "+str(Score))
 
-		TupleGradeList.sort(key=lambda Student:(Student[0], Student[1], Student[2]))
-		DictGrades = [(key, DictGrades[key]) for key in sorted(DictGrades.keys)]
-		print(TupleGradeList)
-		print(DictGrades)
-
+	TupleGradeList.sort( key = lambda Student : (Student[0], Student[1], Student[2]) )
 	return DictGrades, TupleGradeList
 
-#Problem 3 ( The valid of password )
+def WriteNewScoreFile( StudentList ):
+	with open("Output.csv", "ab") as OutputScoreFile:
+		StudentDataWriter = csv.writer(OutputScoreFile, delimiter = ",")
+		for StudentData in StudentList:
+			StudentDataWriter.writerow(StudentData)
+
+#Problem 1 ( Cosine Similarity )
+def cosine_similarity(A,B):
+    ### write your code here ###
+	result_value = float()
+	VectorA = np.array(A)
+	VectorB = np.array(B)
+	
+
+	return float(np.dot(VectorA, VectorB)/(np.linalg.norm(VectorA)*np.linalg.norm(VectorB)))
+
+#Problem 2 ( Grades )
+def grades(FilePath):
+	DictGrades, TupleGradeList = ReadAndProcessScoreFile( FilePath )
+	TupleForFileOutput = [(StudentData[0], ' ' + StudentData[1], ' ' + StudentData[2]) for StudentData in TupleGradeList]
+	WriteNewScoreFile( TupleForFileOutput )
+	return DictGrades, TupleGradeList
+	
 def valid_password(passwords):
 	result_list = list()    
 
 	return result_list
 
 if __name__ == "__main__":
-	pro_1_value = cosine_similarity([1,2,3],[4,5,6])
+	pro_1_value = cosine_similarity([1,2,3],[2,4,6])
 	pro_2_dict, pro_2_tuple = grades('./example.csv')
 	pro_3_list = valid_password(['Ab12!','AA1234!?','AbCdEfGh','12345AaBa!', '12Zz!?98Aa#@'])
 	print (pro_1_value)
