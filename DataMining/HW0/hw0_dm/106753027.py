@@ -1,3 +1,10 @@
+'''
+Author : 106753027 Jung, Liang@NCCUCS
+Environment:
+	OS : MacOS Sierra
+	Python : 2.7.10
+	Numpy : 1.8.0rc1
+'''
 import numpy as np #For problem 1
 import csv #For csv file ops in problem 2
 import re #For using regular expression in problem 3
@@ -86,7 +93,7 @@ def ReadAndProcessScoreFile( FilePath ):
 	return DictGrades, TupleGradeList
 
 def WriteNewScoreFile( StudentList ):
-	with open("Output.csv", "ab") as OutputScoreFile:
+	with open("Output.csv", "wb") as OutputScoreFile:
 		StudentDataWriter = csv.writer(OutputScoreFile, delimiter = ",")
 		for StudentData in StudentList:
 			StudentDataWriter.writerow(StudentData)
