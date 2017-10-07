@@ -110,7 +110,7 @@ def grades(FilePath):
 	
 def valid_password(passwords):
 	result_list = list()
-	Pattern = "^(?=.*[A-Z])(?=.[a-z])(?=.*\d.*\d)(?=.*[%!?#@$]).+$"
+	Pattern = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\d.*\d)(?=.*[%!?#@$]).+$"
 	Reg = re.compile(Pattern)
 	for Password in passwords:
 		if len(Password) < 5 or len(Password) > 10:
