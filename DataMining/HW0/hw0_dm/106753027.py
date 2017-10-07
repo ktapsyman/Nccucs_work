@@ -1,5 +1,6 @@
-import numpy as np
-import csv
+import numpy as np #For problem 1
+import csv #For csv file ops in problem 2
+import re #For using regular expression in problem 3
 
 ScoreKeys = ["0~9", "10~19", "20~29", "30~39", "40~49", "50~59", "60~69", "70~79", "80~89", "90~99", "100"]
 
@@ -108,8 +109,15 @@ def grades(FilePath):
 	return DictGrades, TupleGradeList
 	
 def valid_password(passwords):
-	result_list = list()    
-
+	result_list = list()
+	Pattern = "^(?=.*[A-Z])(?=.[a-z])(?=.*\d.*\d)(?=.*[%!?#@$]).+$"
+	Reg = re.compile(Pattern)
+	for Password in passwords:
+		if len(Password) < 5 or len(Password) > 10:
+			continue
+		if Reg.match(Password):
+			print(Password)
+			result_list.append(Password)
 	return result_list
 
 if __name__ == "__main__":
