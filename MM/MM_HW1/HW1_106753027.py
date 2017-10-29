@@ -3,7 +3,6 @@ Author : 106753027 Jung, Liang@NCCUCS
 Environment:
 	OS : MacOS Sierra
 	Python : 2.7.10
-	Numpy : 1.8.0rc1
 '''
 
 from PIL import Image
@@ -22,6 +21,14 @@ def RGBToGrayScalePsychological(RGBTuple):
 	if type(RGBTuple) is not tuple:
 		raise TypeError("Input must be RGB tuple!")
 	return int(0.587*RGBTuple[0] + 0.299*RGBTuple[1] + 0.114*RGBTuple[2])
+
+def EuclideanDistSquared(Color1, Color2):
+	if type(Color1) is not tuple or type(Color2) is not tuple:
+		raise TypeError("Input must be RGB tuple!")
+	return (Color1[0] - Color2[0])**2 + (Color1[1] - Color2[1])**2 + (Color1[2] - Color2[2])**2
+
+def IsTwoColorsSimilar(Color1, Color2):
+	return EuclideanDistSquared(Color1, Color2) < 10000 #Euclidean distance < 100 ==> squared < 10000.
 
 def Q1(Img):
 	Pixels = Img.load()
@@ -137,9 +144,9 @@ def Q6(Img):
 			Threshold64Pixels[X, Y] = (0, 0, 0) if GrayScale < 64 else (255, 255, 255)
 			Threshold180Pixels[X, Y] = (0, 0, 0) if GrayScale < 180 else (255, 255, 255)
 	
-	BlackWhiteThreshold20.save("Q6-1.jpg")
+	BlackWhiteThreshold180.save("Q6-1.jpg")
 	BlackWhiteThreshold64.save("Q6-2.jpg")
-	BlackWhiteThreshold180.save("Q6-3.jpg")
+	BlackWhiteThreshold20.save("Q6-3.jpg")
 	return
 
 def Q7(Img):
@@ -174,18 +181,104 @@ def Q7(Img):
 	return
 
 def Q8(Img):
+	TargetColor = (255, 190, 25)
+
+	Width, Height = Img.size
+	Pixels = Img.load()
+
+	for X in xrange(Width):
+		for Y in xrange(Height):
+			if IsTwoColorsSimilar(Pixels[X, Y], TargetColor):
+				Pixels[X, Y] = (Pixels[X, Y][0], int(Pixels[X, Y][1]*0.6), Pixels[X, Y][2])
+	Img.save("Q8.jpg")
 	return
 
 def Q9(Img):
+	Width, Height = Img.size
+	Pixels = Img.load()
+
+	for X in xrange(Width - 1):
+		for Y in xrange(Height - 1):
+			GrayScaleOfPixel = RGBToGrayScaleStandard(Pixels[X, Y])
+			GrayScaleOfRightPixel = RGBToGrayScaleStandard(Pixels[X+1, Y])
+			GrayScaleOfBottomPixel = RGBToGrayScaleStandard(Pixels[X, Y+1])
+			if abs(GrayScaleOfPixel - GrayScaleOfRightPixel) > 10 and abs(GrayScaleOfPixel - GrayScaleOfBottomPixel) > 10:
+				Pixels[X, Y] = (0, 0, 0)
+			else:
+				Pixels[X, Y] = (255, 255, 255)
+
+	Img.save("Q9.jpg")
 	return
 
 def Q10(Img):
+	Width, Height = Img.size
+	Pixels = Img.load()
+	
+	for X in xrange(1, Width - 1):
+		for Y in xrange(1, Height - 1):
+			PixelList = []
+			PixelList.append((RGBToGrayScaleStandard(Pixels[X-1, Y-1]), Pixels[X-1, Y-1]))
+			PixelList.append((RGBToGrayScaleStandard(Pixels[X, Y-1]), Pixels[X, Y-1]))
+			PixelList.append((RGBToGrayScaleStandard(Pixels[X+1, Y-1]), Pixels[X+1, Y-1]))
+			PixelList.append((RGBToGrayScaleStandard(Pixels[X-1, Y]), Pixels[X-1, Y]))
+			PixelList.append((RGBToGrayScaleStandard(Pixels[X, Y]), Pixels[X, Y]))
+			PixelList.append((RGBToGrayScaleStandard(Pixels[X+1, Y]), Pixels[X+1, Y]))
+			PixelList.append((RGBToGrayScaleStandard(Pixels[X-1, Y+1]), Pixels[X-1, Y+1]))
+			PixelList.append((RGBToGrayScaleStandard(Pixels[X, Y+1]), Pixels[X, Y+1]))
+			PixelList.append((RGBToGrayScaleStandard(Pixels[X+1, Y+1]), Pixels[X+1, Y+1]))
+			
+			PixelList = sorted(PixelList, key=lambda PixelInfo:PixelInfo[0])#Sort by grayscale value
+			Pixels[X, Y] = PixelList[4][1]
+	Img.save("Q10.jpg")
 	return
 
 def Q11(Img):
+	Width, Height = Img.size
+	Pixels = Img.load()
+
+	LeftRegion = Img.crop((0, 0, int(Width/2), Height))
+	RightRegion = Img.crop((int(Width/2)+1, 0, Width, Height))
+	TopRegion = Img.crop((0, 0, Width, int(Height/2)))
+	DownRegion = Img.crop((0, int(Height/2)+1, Width, Height))
+	
+	LeftFlipped = LeftRegion.transpose(Image.FLIP_LEFT_RIGHT)
+	RightFlipped = RightRegion.transpose(Image.FLIP_LEFT_RIGHT)
+	TopFlipped = TopRegion.transpose(Image.FLIP_TOP_BOTTOM)
+	DownFlipped = DownRegion.transpose(Image.FLIP_TOP_BOTTOM)
+
+	MirrorRightToLeft = Img.copy()
+	MirrorRightToLeft.paste(RightFlipped, (0,0))
+	MirrorRightToLeft.save("Q11-1.jpg")
+
+	MirrorLeftToRight = Img.copy()
+	MirrorLeftToRight.paste(LeftFlipped, (int(Width/2)+1, 0))
+	MirrorLeftToRight.save("Q11-2.jpg")
+
+	MirrorTopToDown = Img.copy()
+	MirrorTopToDown.paste(TopFlipped, (0, int(Height/2)+1))
+	MirrorTopToDown.save("Q11-3.jpg")
+
+	MirrorDownToTop = Img.copy()
+	MirrorDownToTop.paste(DownFlipped, (0, 0))
+	MirrorDownToTop.save("Q11-4.jpg")
+
 	return
 
 def Q12(Elsa, Flower):
+	
+	ElsaPixels = Elsa.load()
+	BaseLine = RGBToGrayScaleStandard(ElsaPixels[0, 0])
+
+	FlowerPixels = Flower.load()
+	
+	Width, Height = Elsa.size #We have to assume that they has the same size
+
+	for X in xrange(Width):
+		for Y in xrange(Height):
+				if abs(RGBToGrayScaleStandard(ElsaPixels[X, Y])-BaseLine) < 9:
+					ElsaPixels[X, Y] = FlowerPixels[X, Y]
+
+	Elsa.save("Q12.jpg")
 	return
 
 with Image.open(PENGUINS_FILENAME) as PenguinImg, Image.open(PENGUINS_NOISE_FILENAME) as PenguinNoisedImg, Image.open(ELSA_FILENAME) as ElsaImg, Image.open(CHRYSANTHEMUM_FILENAME) as FlowerImg:
@@ -193,16 +286,16 @@ with Image.open(PENGUINS_FILENAME) as PenguinImg, Image.open(PENGUINS_NOISE_FILE
 	PenguinNoisedImg.load()
 	ElsaImg.load()
 	FlowerImg.load()
-	#Q1(PenguinImg.copy())
-	#Q2(PenguinImg.copy().convert("CMYK"))
-	#Q3(PenguinImg.copy())
-	#Q4(PenguinImg.copy())
-	#Q5(PenguinImg)
-	#Q6(PenguinImg)
+	Q1(PenguinImg.copy())
+	Q2(PenguinImg.copy().convert("CMYK"))
+	Q3(PenguinImg.copy())
+	Q4(PenguinImg.copy())
+	Q5(PenguinImg)
+	Q6(PenguinImg)
 	Q7(PenguinImg)
 	Q8(PenguinImg.copy())
 	Q9(PenguinImg.copy())
 	Q10(PenguinNoisedImg)
-	Q11(PenguinImg.copy())
+	Q11(PenguinImg)
 	Q12(ElsaImg, FlowerImg)
 
