@@ -34,7 +34,6 @@ def CheckROIEntered(BtnName, CurrentFrame, Base):
 		else:
 			global BtnNextBase
 			BtnNextBase = cv2.countNonZero(CurrentFrame)
-			print(BtnNextBase)
 		return False
 	return cv2.countNonZero(CurrentFrame) - Base >= 3000
 
@@ -42,11 +41,13 @@ def CheckROIEntered(BtnName, CurrentFrame, Base):
 def OnClick(BtnName):
 	global CurrentImgIndex
 	if BtnName == "Prev":
-		print("Prev" + str(CurrentImgIndex))
-		CurrentImgIndex = (CurrentImgIndex-1)%3+1
+		CurrentImgIndex = (CurrentImgIndex-1)
+		if CurrentImgIndex <= 0:
+			CurrentImgIndex = CurrentImgIndex%3+1
 	elif BtnName == "Next":
-		print("Next" + str(CurrentImgIndex))
-		CurrentImgIndex = (CurrentImgIndex+1)%3+1
+		CurrentImgIndex = (CurrentImgIndex+1)
+		if CurrentImgIndex >= 4:
+			CurrentImgIndex = CurrentImgIndex%3
 	Img = cv2.imread("./Imgs/Img" + str(CurrentImgIndex) + ".jpg")
 	cv2.imshow("Img", Img)
 
