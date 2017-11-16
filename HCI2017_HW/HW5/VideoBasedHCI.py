@@ -29,7 +29,6 @@ def CheckROIEntered(CurrentFrame):
 
 def OnClick(BtnName):
 	global CurrentImgIndex
-	print("OnClick : " + BtnName)
 	if BtnName == "Prev":
 		CurrentImgIndex = (CurrentImgIndex-1)
 		if CurrentImgIndex <= 0:
@@ -61,21 +60,19 @@ def GUIThread():
 		
 		if CheckROIEntered(BgMask[BtnNextROI[0][1]:BtnNextROI[1][1], BtnNextROI[0][0]:BtnNextROI[1][0]]):
 			if CountingDown:
-				sleep(0.033)
+				cv2.waitKey(30)
 				continue
 			CountingDown = True
-			OnClick("Next")
-			#ClickTimer = Timer(0, OnClick, kwargs={'BtnName':"Next"})
-			#ClickTimer.start()
+			ClickTimer = Timer(0, OnClick, kwargs={'BtnName':"Next"})
+			ClickTimer.start()
 			
 		elif CheckROIEntered(BgMask[BtnPrevROI[0][1]:BtnPrevROI[1][1], BtnPrevROI[0][0]:BtnPrevROI[1][0]]):
 			if CountingDown:
-				sleep(0.033)
+				cv2.waitKey(30)
 				continue
 			CountingDown = True
-			OnClick("Prev")
-			#ClickTimer = Timer(0, OnClick, kwargs={'BtnName':"Prev"})
-			#ClickTimer.start()
+			ClickTimer = Timer(0, OnClick, kwargs={'BtnName':"Prev"})
+			ClickTimer.start()
 		else:
 			if CountingDown:
 				CountingDown = False
