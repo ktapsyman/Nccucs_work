@@ -63,7 +63,7 @@ def GUIThread():
 				cv2.waitKey(30)
 				continue
 			CountingDown = True
-			ClickTimer = Timer(0, OnClick, kwargs={'BtnName':"Next"})
+			ClickTimer = Timer(2, OnClick, kwargs={'BtnName':"Next"})
 			ClickTimer.start()
 			
 		elif CheckROIEntered(BgMask[BtnPrevROI[0][1]:BtnPrevROI[1][1], BtnPrevROI[0][0]:BtnPrevROI[1][0]]):
@@ -71,7 +71,7 @@ def GUIThread():
 				cv2.waitKey(30)
 				continue
 			CountingDown = True
-			ClickTimer = Timer(0, OnClick, kwargs={'BtnName':"Prev"})
+			ClickTimer = Timer(2, OnClick, kwargs={'BtnName':"Prev"})
 			ClickTimer.start()
 		else:
 			if CountingDown:
@@ -86,5 +86,3 @@ def GUIThread():
 	cv2.destroyAllWindows()
 
 GUIThread()
-#MainThread = threading.Thread(target=GUIThread)
-#MainThread.start()
