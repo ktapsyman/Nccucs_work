@@ -2,16 +2,13 @@ import cv2
 import numpy as np
 import threading
 from threading import Timer
-
+from time import sleep
 
 ColorRed = (0, 0, 108)
 ColorAoi = (255, 108, 0)
 
 BtnNextROI = ((980, 420), (1280, 720))
 BtnPrevROI = ((0, 420), (300, 720))
-
-BtnPrevBase = 0
-BtnNextBase = 0
 
 CurrentImgIndex = 0
 
@@ -26,20 +23,13 @@ def DrawROI(Img, RectPoints, Color, Text):
 	cv2.putText(Img, Text, (RectPoints[0][0]+75, RectPoints[0][1]+75), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
 	return
 
-def CheckROIEntered(BtnName, CurrentFrame, Base):
-	if 0 == Base:
-		if BtnName == "Prev":
-			global BtnPrevBase
-			BtnPrevBase = cv2.countNonZero(CurrentFrame)
-		else:
-			global BtnNextBase
-			BtnNextBase = cv2.countNonZero(CurrentFrame)
-		return False
-	return cv2.countNonZero(CurrentFrame) - Base >= 3000
+def CheckROIEntered(CurrentFrame):
+	return cv2.countNonZero(CurrentFrame) > 1000
 
 
 def OnClick(BtnName):
 	global CurrentImgIndex
+	print("OnClick : " + BtnName)
 	if BtnName == "Prev":
 		CurrentImgIndex = (CurrentImgIndex-1)
 		if CurrentImgIndex <= 0:
@@ -49,13 +39,13 @@ def OnClick(BtnName):
 		if CurrentImgIndex >= 4:
 			CurrentImgIndex = CurrentImgIndex%3
 	Img = cv2.imread("./Imgs/Img" + str(CurrentImgIndex) + ".jpg")
+	Img = cv2.resize(Img, (200, 200))
 	cv2.imshow("Img", Img)
 
-	CountingDown = False
+Substractor = cv2.bgsegm.createBackgroundSubtractorMOG()
 
 def GUIThread():
 	Camera = InitializeCam()
-	Background = None
 	CountingDown = False
 	ClickTimer = None
 	LastDiff = None
@@ -65,38 +55,39 @@ def GUIThread():
 
 		DrawROI(CurrentFrame, BtnPrevROI, ColorAoi, "Prev image")
 		DrawROI(CurrentFrame, BtnNextROI, ColorAoi, "Next image")
+		
+		BgMask = Substractor.apply(CurrentFrame)
 		cv2.imshow("Frame", CurrentFrame)
-
-		if Background is None:
-			Background = CurrentFrame
+		
+		if CheckROIEntered(BgMask[BtnNextROI[0][1]:BtnNextROI[1][1], BtnNextROI[0][0]:BtnNextROI[1][0]]):
+			if CountingDown:
+				sleep(0.033)
+				continue
+			CountingDown = True
+			OnClick("Next")
+			#ClickTimer = Timer(0, OnClick, kwargs={'BtnName':"Next"})
+			#ClickTimer.start()
+			
+		elif CheckROIEntered(BgMask[BtnPrevROI[0][1]:BtnPrevROI[1][1], BtnPrevROI[0][0]:BtnPrevROI[1][0]]):
+			if CountingDown:
+				sleep(0.033)
+				continue
+			CountingDown = True
+			OnClick("Prev")
+			#ClickTimer = Timer(0, OnClick, kwargs={'BtnName':"Prev"})
+			#ClickTimer.start()
 		else:
-			Diff = cv2.cvtColor(cv2.absdiff(Background, CurrentFrame), cv2.COLOR_BGR2GRAY)
-			if CheckROIEntered("Prev", Diff[BtnPrevROI[0][1]:BtnPrevROI[1][1], BtnPrevROI[0][0]:BtnPrevROI[1][0]], BtnPrevBase):
-				if CountingDown:
-					continue
-				CountingDown = True
-				ClickTimer = Timer(2, OnClick, kwargs={'BtnName':"Prev"})
-				ClickTimer.start()
-				continue
-			
-			if CheckROIEntered("Next", Diff[BtnNextROI[0][1]:BtnNextROI[1][1], BtnNextROI[0][0]:BtnNextROI[1][0]], BtnNextBase):
-				if CountingDown:
-					continue
-				CountingDown = True
-				ClickTimer = Timer(2, OnClick, kwargs={'BtnName':"Next"})
-				ClickTimer.start()
-				continue
-			
 			if CountingDown:
 				CountingDown = False
 				if ClickTimer is not None:
-					ClickTimer.cancel()
+					ClickTimer.cancel()		
 
-		if cv2.waitKey(100) &0xff == ord('q'):
+		if cv2.waitKey(30) &0xff == ord('q'):
 			break
 
 	Camera.release()
 	cv2.destroyAllWindows()
 
-MainThread = threading.Thread(target=GUIThread)
-MainThread.start()
+GUIThread()
+#MainThread = threading.Thread(target=GUIThread)
+#MainThread.start()
