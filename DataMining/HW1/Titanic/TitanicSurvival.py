@@ -7,7 +7,7 @@ import re
 from Classifiers import *
 
 Classifiers = [
-	SVC(probability=True),
+	SVC(probability=False),
     #DecisionTreeClassifier(),
 	RandomForestClassifier(),
 	#AdaBoostClassifier(),
@@ -122,7 +122,7 @@ def Preprocess(Data, NullFareValue):
 	Data = ProcessSex(Data)
 	Data = ProcessCabin(Data)
 	Data = ProcessFare(Data, NullFareValue)
-	Data = ProcessEmbarked(Data)
+	#Data = ProcessEmbarked(Data)
 	Data = ProcessAge(Data)
 	Data = ProcessCompanions(Data)
 	"""
@@ -139,7 +139,7 @@ def Preprocess(Data, NullFareValue):
 	Cabin          204 non-null object
 	Embarked       889 non-null object
 	"""
-	DropList = ["PassengerId", "Name", "SibSp", "Parch", "Ticket", "Cabin"]
+	DropList = ["PassengerId", "Name", "SibSp", "Parch", "Ticket", "Cabin", "Embarked"]
 	Data = Data.drop(DropList, axis=1)
 	return Data.values
 
