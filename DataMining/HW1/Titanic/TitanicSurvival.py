@@ -12,6 +12,7 @@ Classifiers = [
 	RandomForestClassifier(),
 	#AdaBoostClassifier(),
 	GradientBoostingClassifier(),
+	xgb.XGBClassifier(max_depth=3, n_estimators=300, learning_rate=0.05)
 ]
 
 def ShowFeature(TrainingData, FeatureName):
@@ -192,6 +193,10 @@ if __name__ == '__main__':
 	RFClassifier = RandomForestClassifier()
 	RFClassifier.fit(TrainingData[0::, 1::], TrainingData[0::, 0])
 	RFPrediction = RFClassifier.predict(TestingData)
+
+	XGBoostClassifier = xgb.XGBClassifier(max_depth=3, n_estimators=300, learning_rate=0.05)
+	XGBoostClassifier.fit(TrainingData[0::, 1::], TrainingData[0::, 0])
+	XGBPrediction = XGBoostClassifier.predict(TestingData)
 	"""
 	DTClassifier = DecisionTreeClassifier()
 	DTClassifier.fit(TrainingData[0::, 1::], TrainingData[0::, 0])
@@ -201,7 +206,8 @@ if __name__ == '__main__':
 	AdaClassifier.fit(TrainingData[0::, 1::], TrainingData[0::, 0])
 	AdaPrediction = AdaClassifier.predict(TestingData)
 	"""
-	Prediction=[1 if x>=3 else 0 for x in GBPrediction+SVCPrediction+RFPrediction ]
+	
+	Prediction=[1 if x>=2 else 0 for x in GBPrediction+SVCPrediction+RFPrediction ]
 
 	OutputData = {"PassengerId":TestingPassengerIds, "Survived":Prediction}
 	OutputDF = pd.DataFrame(data=OutputData)
