@@ -12,9 +12,23 @@ Classifiers = [
 	#xgb.XGBClassifier(max_depth=3, n_estimators=300, learning_rate=0.05)
 ]
 
-def Preprocess(Data):
-	
+def FreqVar(Data, Feature):
+	Counts = Data[Feature].value_counts()
+	Sum = sum(Counts.values)
+	Len = len(Counts)
+	Ret = 0
+	for Value in Counts:
+		Ret += Value/Sum*(Value-Sum/Len)
+	return Ret
 
+def ShowVariance(Data):
+	for Feature in Data:
+		Var = FreqVar(Data, Feature)
+		print(Feature)
+		print(Var)
+
+def Preprocess(Data):
+	ShowVariance(Data[1::])
 	return Data.values
 
 def AmazonPredict():
@@ -22,16 +36,14 @@ def AmazonPredict():
 	TestingData = ReadTestingData("./test.csv")
 	TestingIds = TestingData["id"].values
 	
-	print(TrainingData.info())
-	print(TestingData.info())
-	
+
 	TrainingData = Preprocess(TrainingData)
 	TestingData = Preprocess(TestingData)
 	
-	TrainingX = TrainingData[0::, 1::]
+	TrainingX = TrainingData[0::, 3::]
 	TrainingLabel = TrainingData[0::, 0]
 
-	TestingX = TestingData[0::, 1::]
+	TestingX = TestingData[0::, 3::]
 
 	#One-hot encoder
 	Enc = preprocessing.OneHotEncoder()
@@ -40,7 +52,7 @@ def AmazonPredict():
 	TestingX = Enc.transform(TestingX)
 	
 	Spliter = StratifiedShuffleSplit(n_splits=10, test_size=0.1, random_state=0)
-	Features = TrainingData[0::, 1::]
+	Features = TrainingData[0::, 3::]
 	Labels = TrainingData[0::, 0]
 	
 	ResultDict = {}
