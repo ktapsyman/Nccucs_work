@@ -1,14 +1,15 @@
 from Utility import *
 from Classifiers import *
 import numpy as np
+from imblearn.over_sampling import SMOTE
 
 Classifiers = [
 	LogisticRegression(),
 	#SVC(probability=True),
 	#DecisionTreeClassifier(),
-	#RandomForestClassifier(n_estimators=100),
+	RandomForestClassifier(n_estimators=100),
 	#AdaBoostClassifier(),
-	#GradientBoostingClassifier(),
+	GradientBoostingClassifier(),
 	#xgb.XGBClassifier(max_depth=3, n_estimators=300, learning_rate=0.05)
 ]
 
@@ -16,19 +17,25 @@ def FreqVar(Data, Feature):
 	Counts = Data[Feature].value_counts()
 	Sum = sum(Counts.values)
 	Len = len(Counts)
+	if Feature == "ACTION":
+		print(Counts)
 	Ret = 0
 	for Value in Counts:
-		Ret += Value/Sum*(Value-Sum/Len)
-	return Ret
+		Ret += Value/Sum*((Value-Sum/Len)**2)
+	return Ret/(10**6)
 
 def ShowVariance(Data):
 	for Feature in Data:
+		"""
+		if Feature == "ACTION":
+			continue
+		"""
 		Var = FreqVar(Data, Feature)
-		print(Feature)
+		print("============= "+Feature+" ==============")
 		print(Var)
 
 def Preprocess(Data):
-	ShowVariance(Data[1::])
+	ShowVariance(Data)
 	return Data.values
 
 def AmazonPredict():
@@ -51,6 +58,9 @@ def AmazonPredict():
 	TrainingX = Enc.transform(TrainingX)
 	TestingX = Enc.transform(TestingX)
 	
+	Smote = SMOTE()
+	TrainingX, TrainingLabel = Smote.fit_sample(TrainingX, TrainingLabel)
+
 	Spliter = StratifiedShuffleSplit(n_splits=10, test_size=0.1, random_state=0)
 	Features = TrainingData[0::, 3::]
 	Labels = TrainingData[0::, 0]
