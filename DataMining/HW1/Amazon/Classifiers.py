@@ -1,5 +1,5 @@
 from sklearn.model_selection import StratifiedShuffleSplit
-from sklearn.metrics import accuracy_score, log_loss
+from sklearn.metrics import accuracy_score, log_loss, roc_curve, auc
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
