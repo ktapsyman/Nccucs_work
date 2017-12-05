@@ -102,7 +102,6 @@ def AmazonPredict():
 	OutputData = {"id":TestingIds, "ACTION":LogisticPrediction}
 	OutputDF = pd.DataFrame(data=OutputData, columns = ["id", "ACTION"])
 	OutputDF.to_csv("LogisticResult.csv", index=False)
-	"""
 	#RF
 	RFClassifier = RandomForestClassifier(n_estimators=300)
 	RFClassifier.fit(TrainingX, TrainingLabel)
@@ -116,5 +115,5 @@ def AmazonPredict():
 	OutputData = {"id":TestingIds, "ACTION":Prediction}
 	OutputDF = pd.DataFrame(data=OutputData, columns = ["id", "ACTION"])
 	OutputDF.to_csv("EnsembleResult.csv", index=False)
-	"""
+
 AmazonPredict()
