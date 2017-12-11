@@ -18,14 +18,6 @@ class Example(Frame):
 
 	def setAllImages(self, Images):
 		self.allImages = Images
-		"""
-		This image is a bilevel image! I've dealt with it 
-		test = searchImageByName("ukbench00472.jpg", Images)
-		print(r)
-		print(g)
-		print(b)
-		print test.getColorHistogram()
-		"""
 	
 	def cleanUp(self):
 		for img in self.allImages:
@@ -37,12 +29,12 @@ class Example(Frame):
 
 		self.pack(fill=BOTH, expand=True)
 
-		Label(self, font=("Courier", 14, "bold"), text = "Select File: ").grid(row=0, column=0, pady=5)
+		Label(self, font=("Courier", 12, "bold"), text = "Select File: ").grid(row=0, column=0, pady=5)
 		Button(self, text = "Click to select file", command = lambda : openFile(self)).grid(row=0, column=1, pady=5)
 		self.fileName = StringVar()
-		Label(self, textvariable=self.fileName, font=("Courier", 14)).grid(row=0, column=1, columnspan=2, pady=5, sticky=W)
+		Label(self, textvariable=self.fileName, font=("Courier", 12)).grid(row=0, column=1, columnspan=2, pady=5, sticky=W)
 
-		Label(self, text = "Select Mode: ", font=("Courier", 14, "bold")).grid(row=1, column=0, pady=5)
+		Label(self, text = "Select Mode: ", font=("Courier", 12, "bold")).grid(row=1, column=0, pady=5)
 		mode = StringVar(self)
 		mode.set("Q1-ColorHistogram")
 		om = OptionMenu(self, mode, "Q1-ColorHistogram", "Q2-ColorLayout", "Q3-SIFT Visual Words", "Q4-Visual Words using stop words" )
@@ -51,22 +43,25 @@ class Example(Frame):
 		Button(self, text = "SEARCH!", command = lambda: startSearching(self, self.fileName.get(),mode.get())).grid(row=3, column=1, pady=5)
 		
 		for col in range(5):
-			titleLbl = Label(self, text=TITLE[col], font=("Courier", 14, "bold")).grid(row=4, column=col, padx=50)
+			titleLbl = Label(self, text=TITLE[col], font=("Courier", 12, "bold")).grid(row=4, column=col, padx=50)
 		
 		self.images = []
 		for rowCount in range(10):
 			for colCount in range(5):
 				self.images.append(Label(self, text="Test row="+str(rowCount) + " col=" + str(colCount)))
-				self.images[rowCount*5+colCount].grid(row=rowCount+5, column=colCount, pady=20, padx=5)
+				self.images[rowCount*5+colCount].grid(row=rowCount+5, column=colCount, pady=5, padx=5)
 	
-	def updateImgList(self, imgList):
+	def updateImgList(self, metric, imgList):
 		for rowCount in range(10):
-			for colCount in range(5):
-				self.images[rowCount*5+colCount].configure(image=None)
-		
+			img = ImageTk.PhotoImage(Image.open("./dataset/"+imgList[rowCount][0].getFileName()).resize((50, 50), Image.ANTIALIAS))
+			self.images[rowCount*5].configure(text=rowCount+1)
+			self.images[rowCount*5+1].configure(text=imgList[rowCount][0].getFileName())
+			self.images[rowCount*5+2].configure(image=img)
+			self.images[rowCount*5+2].image = img
+			self.images[rowCount*5+3].configure(text=metric)
+			self.images[rowCount*5+4].configure(text=imgList[rowCount][1])
 		
 def searchImageByName(fileName, imgList):
-	print(fileName)
 	for img in imgList:
 		if img.getFileName() == fileName:
 			return img
@@ -74,13 +69,9 @@ def searchImageByName(fileName, imgList):
 
 def getTop10SimilarColorHist(img, imgList):
 	targetHist = img.getColorHistogram()
-	print targetHist.shape
-	print imgList[10].getColorHistogram().shape
-	for image in imgList:
-		print image.getFileName()
-		print image.getColorHistogram().shape
-	top10ColorHist = [(image, l2Norm(targetHist, image.getColorHistogram())) for image in imgList]#.sort(key=lambda x : x[1])
-	return top10ColorHist
+	top10ColorHist = [(image, l2Norm(targetHist, image.getColorHistogram())) for image in imgList]
+	top10ColorHist.sort(key=lambda x:x[1])
+	return top10ColorHist[:10]
 
 def startSearching (app, fileName, mode):
 	imgList = []
@@ -90,9 +81,7 @@ def startSearching (app, fileName, mode):
 			imgList	= targetImg.getMetricResult[mode]
 		else:
 			imgList = getTop10SimilarColorHist(targetImg, app.allImages)
-			targetImage.setMetricResult(mode, imgList)
-			print imgList
-		print mode
+			targetImg.setMetricResult(imgList, metric=mode)
 	elif mode == "Q2-ColorLayout":
 		print mode
 	elif mode == "Q3-SIFT Visual Words":
@@ -100,16 +89,16 @@ def startSearching (app, fileName, mode):
 	elif mode == "Q4-Visual Words using stop words":
 		print mode
 	
-	app.updateImgList(imgList)
+	app.updateImgList(mode, imgList)
 	
 
 if __name__ == '__main__':
 	root = Tk()
-	size = 720, 1024
+	size = 800, 1280
 
 	app = Example(root)
 	app.setAllImages([customizedImage(img, Image.open("./dataset/"+img)) for img in os.listdir("./dataset") if ".jpg" in img])
-	root.geometry("1024x720")
+	root.geometry("1280x800")
 	root.mainloop()
 	app.cleanUp()
 

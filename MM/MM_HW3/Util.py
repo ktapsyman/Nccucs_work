@@ -18,8 +18,15 @@ class customizedImage(object):
 	def __init__(self, fileName, img):
 		self._img = img
 		self._fileName = fileName
-		self._colorHistogram = np.array(img.histogram())
-		self._colorLayout = getColorLayout(img)
+
+		histogram = self._img.histogram()
+		if 256 == len(histogram):
+			newImg = Image.new("RGB", img.size)
+			newImg.paste(img)
+			self._img = newImg
+		
+		self._colorHistogram = np.array(self._img.histogram())
+		self._colorLayout = getColorLayout(self._img)
 		self.MetricDic = {"Q1-ColorHistogram":[], "Q2-ColorLayout":[], "Q3-SIFT Visual Words":[], "Q4-Visual Words using stop words":[]}
 		self.SIFTVisualWords = None #TODO
 		self.SIFTWithStopWords = None #TODO
@@ -60,6 +67,4 @@ def openFile (app):
 
 
 def l2Norm(vec1, vec2):
-	if 256 == vec1.shape[0] or 256 == vec2.shape[0]:
-		print 256
 	return np.linalg.norm(vec2-vec1)
