@@ -15,14 +15,8 @@ import tkMessageBox
 import tkFileDialog 
 from ttk import Frame, Button, Label, Style
 
-from random import randint
-from PIL import Image
+from Util import *
 
-class customizedImage(Image.Image):
-	def __init__(self, img):
-		self.colorHistogram = img.histogram()
-		self.colorLayout = getColorLayout(img)
-		self.SIFT = None #TODO
 
 class Example(Frame):
   
@@ -33,8 +27,10 @@ class Example(Frame):
 
 	def setAllImages(self, Images):
 		self.allImages = Images
-		print Images[0]
 		Images[0][1].show()
+		print l2Norm(Images[0][1].colorHistogram, Images[1][1].colorHistogram)
+		for i in range(10):
+			continue
 	
 	def cleanUp(self):
 		for img in self.allImages:
@@ -60,23 +56,27 @@ class Example(Frame):
 
 		self.images = []
 		for i in range(10):
-			self.images.append(Label(self))
+			self.images.append(Label(self, text="Test"+str(i)))
 			self.images[i].grid(row=i/5+4, column=i%5, pady=50)
  
-def openFile ():
-	fileName = tkFileDialog.askopenfilename(initialdir = "./dataset")
-	app.fileName.set(fileName)
 
 def startSearching (fileName, mode):
-	print "Your Code Here."
-	print mode
+	if mode == "Q1-ColorHistogram":
+		print mode
+	elif mode == "Q2-ColorLayout":
+		print mode
+	elif mode == "Q3-SIFT Visual Words":
+		print mode
+	elif mode == "Q4-Visual Words using stop words":
+		print mode
+	
 
 if __name__ == '__main__':
 	root = Tk()
 	size = 220, 220
 
 	app = Example(root)
-	app.setAllImages([(img, Image.open("./dataset/"+img)) for img in os.listdir("./dataset") if ".jpg" in img])
+	app.setAllImages([(img, customizedImage(Image.open("./dataset/"+img))) for img in os.listdir("./dataset") if ".jpg" in img])
 	root.geometry("1024x720")
 	root.mainloop()
 	app.cleanUp()
