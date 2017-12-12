@@ -48,7 +48,7 @@ class Example(Frame):
 		self.images = []
 		for rowCount in range(10):
 			for colCount in range(5):
-				self.images.append(Label(self, text="Test row="+str(rowCount) + " col=" + str(colCount)))
+				self.images.append(Label(self))
 				self.images[rowCount*5+colCount].grid(row=rowCount+5, column=colCount, pady=5, padx=5)
 	
 	def updateImgList(self, metric, imgList):
@@ -60,7 +60,7 @@ class Example(Frame):
 			self.images[rowCount*5+2].image = img
 			self.images[rowCount*5+3].configure(text=metric)
 			self.images[rowCount*5+4].configure(text=imgList[rowCount][1])
-		
+
 def searchImageByName(fileName, imgList):
 	for img in imgList:
 		if img.getFileName() == fileName:
@@ -73,24 +73,28 @@ def getTop10SimilarColorHist(img, imgList):
 	top10ColorHist.sort(key=lambda x:x[1])
 	return top10ColorHist[:10]
 
+def getTop10SimilarColorLayout(img, imgList):
+	targetColorLayout = img.getColorLayout()
+	return None #TODO
+
 def startSearching (app, fileName, mode):
 	imgList = []
 	targetImg = searchImageByName(fileName, app.allImages)
-	if mode == "Q1-ColorHistogram":
-		if 0 != len(targetImg.getMetricResult(mode)):
-			imgList	= targetImg.getMetricResult[mode]
-		else:
+	
+	if 0 != len(targetImg.getMetricResult(mode)):
+		imgList	= targetImg.getMetricResult[mode]
+	else:
+		if mode == "Q1-ColorHistogram":
 			imgList = getTop10SimilarColorHist(targetImg, app.allImages)
-			targetImg.setMetricResult(imgList, metric=mode)
-	elif mode == "Q2-ColorLayout":
-		print mode
-	elif mode == "Q3-SIFT Visual Words":
-		print mode
-	elif mode == "Q4-Visual Words using stop words":
-		print mode
+		elif mode == "Q2-ColorLayout":
+			print mode
+		elif mode == "Q3-SIFT Visual Words":
+			print mode
+		elif mode == "Q4-Visual Words using stop words":
+			print mode
+		targetImg.setMetricResult(imgList, metric=mode)
 	
 	app.updateImgList(mode, imgList)
-	
 
 if __name__ == '__main__':
 	root = Tk()

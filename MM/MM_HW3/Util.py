@@ -6,6 +6,7 @@ Environment:
 """
 import os
 import numpy as np
+from scipy.fftpack import dct
 
 from Tkinter import *
 import tkFileDialog 
@@ -26,10 +27,11 @@ class customizedImage(object):
 			self._img = newImg
 		
 		self._colorHistogram = np.array(self._img.histogram())
-		self._colorLayout = getColorLayout(self._img)
+		self._colorLayout = getColorLayout(self._img, fileName)
 		self.MetricDic = {"Q1-ColorHistogram":[], "Q2-ColorLayout":[], "Q3-SIFT Visual Words":[], "Q4-Visual Words using stop words":[]}
 		self.SIFTVisualWords = None #TODO
 		self.SIFTWithStopWords = None #TODO
+	
 	def show(self):
 		self._img.show()
 
@@ -57,8 +59,16 @@ class customizedImage(object):
 	def setMetricResult(self, metricResult, metric="" ):#Top 10 only
 		self.MetricDic[metric] = metricResult
 
-def getColorLayout(img):
-	#TODO
+def getColorLayout(img, fileName):
+	width, height = img.size
+	blockWidth = width/8
+	blockHeight = height/8
+	partitions = []
+	for row in range(0, height-blockHeight, blockHeight):
+		for col in range(0, width-blockWidth, blockWidth):
+			#TODO : representitive color : average
+			partition = np.array(img.crop((row, col, row+blockHeight, col+blockWidth)).convert("YCbCr"))
+			partitions.append((dctY, dctCb, dctCr))
 	return None
 
 def openFile (app):
