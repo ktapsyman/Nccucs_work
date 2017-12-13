@@ -7,6 +7,8 @@ Environment:
 import os
 import numpy as np
 from scipy.fftpack import dct
+from sklearn.cluster import KMeans
+import sift
 
 from Tkinter import *
 import tkFileDialog 
@@ -26,6 +28,8 @@ class customizedImage(object):
 			newImg.paste(self._img)
 			self._img = newImg
 		
+		if not os.path.isfile("./SIFT/"+fileName.split(".")[0]+".sift"):
+			sift.process_image("./dataset/"+fileName, "./SIFT/"+fileName.split(".")[0]+".sift")
 		self._colorHistogram = np.array(self._img.histogram())
 		self._colorLayout = getColorLayout(self._img, fileName)
 		self.MetricDic = {"Q1-ColorHistogram":[], "Q2-ColorLayout":[], "Q3-SIFT Visual Words":[], "Q4-Visual Words using stop words":[]}

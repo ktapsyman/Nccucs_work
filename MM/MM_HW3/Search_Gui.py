@@ -30,9 +30,9 @@ class Example(Frame):
 		self.pack(fill=BOTH, expand=True)
 
 		Label(self, font=("Courier", 12, "bold"), text = "Select File: ").grid(row=0, column=0, pady=5)
-		Button(self, text = "Click to select file", command = lambda : openFile(self)).grid(row=0, column=2, pady=5)
+		Button(self, text = "Click to select file", command = lambda : openFile(self)).grid(row=0, column=1, pady=5)
 		self.fileName = StringVar()
-		Label(self, textvariable=self.fileName, font=("Courier", 12)).grid(row=0, column=1, columnspan=2, pady=5, sticky=W)
+		Label(self, textvariable=self.fileName, font=("Courier", 12)).grid(row=0, column=2, columnspan=2, pady=5, sticky=W)
 
 		Label(self, text = "Select Mode: ", font=("Courier", 12, "bold")).grid(row=1, column=0, pady=5)
 		mode = StringVar(self)
@@ -75,7 +75,7 @@ def getTop10SimilarColorHist(img, imgList):
 
 def getTop10SimilarColorLayout(img, imgList):
 	targetColorLayout = img.getColorLayout()
-	top10ColorLayout = [(image, l2Norm(targetColorLayout[0], image.getColorLayout()[0])+l2Norm(targetColorLayout[1], image.getColorLayout()[1])+l2Norm(targetColorLayout[2], image.getColorLayout()[2])) for image in imgList]
+	top10ColorLayout = [(image, 0.8*l2Norm(targetColorLayout[0], image.getColorLayout()[0])+0.1*l2Norm(targetColorLayout[1], image.getColorLayout()[1])+0.1*l2Norm(targetColorLayout[2], image.getColorLayout()[2])) for image in imgList]
 	top10ColorLayout.sort(key=lambda x:x[1])
 
 	return top10ColorLayout[:10]
