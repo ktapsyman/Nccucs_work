@@ -17,13 +17,13 @@ from PIL import ImageTk, Image
 
 class customizedImage(object):
 	def __init__(self, fileName, img):
-		self._img = img
+		self._img = img.resize((224, 256))
 		self._fileName = fileName
 
 		histogram = self._img.histogram()
 		if 256 == len(histogram):
-			newImg = Image.new("RGB", img.size)
-			newImg.paste(img)
+			newImg = Image.new("RGB", self._img.size)
+			newImg.paste(self._img)
 			self._img = newImg
 		
 		self._colorHistogram = np.array(self._img.histogram())
@@ -59,18 +59,53 @@ class customizedImage(object):
 	def setMetricResult(self, metricResult, metric="" ):#Top 10 only
 		self.MetricDic[metric] = metricResult
 
+def zigZag(array, row, col):
+	wPos = 0
+	hPos = 0
+	direction = 1
+	ret = []
+	while wPos != col-1 or hPos != row-1:
+		ret.append(array[row*hPos+wPos])
+
+		if (hPos == 0 or hPos == col-1) and wPos%2 == 0:
+			wPos += 1
+			direction *= -1
+
+		elif (wPos == 0 or wPos == row-1) and hPos%2 == 1:
+			direction *= -1
+			hPos += 1
+
+		else:
+			wPos += direction
+			hPos -= direction
+	ret.append(array[-1])
+	return ret
+			
+
 def getColorLayout(img, fileName):
 	width, height = img.size
 	blockWidth = width/8
 	blockHeight = height/8
 	partitions = []
-	for row in range(0, height-blockHeight, blockHeight):
-		for col in range(0, width-blockWidth, blockWidth):
-			#TODO : representitive color : average
-			partition = np.array(img.crop((row, col, row+blockHeight, col+blockWidth)))
-			print partition.shape
+	for row in range(0, height, blockHeight):
+		for col in range(0, width, blockWidth):
+			imgSlice = img.crop((row, col, row+blockHeight, col+blockWidth))
+			partition = np.array(imgSlice)
+			representativeIcon = partition.mean(axis=(0, 1))
+			imgSlice.paste((int(representativeIcon[0]), int(representativeIcon[1]), int(representativeIcon[2])), (0, 0, imgSlice.size[0], imgSlice.size[1]))
+			imgSlice = np.array(imgSlice.convert("YCbCr"))
+			dctY = imgSlice[0]
+			dctCb = imgSlice[1]
+			dctCr = imgSlice[2]
 			partitions.append((dctY, dctCb, dctCr))
-	return None
+	ret = (np.array(zigZag([x[0] for x in partitions], 8, 8)), np.array(zigZag([x[1] for x in partitions], 8, 8)), np.array(zigZag([x[2] for x in partitions], 8, 8)))
+	if (64, 31, 3) == ret[0].shape or (64, 31, 3) == ret[1].shape or (64, 31, 3) == ret[2].shape:
+		print fileName
+		print ret[0].shape
+		print ret[1].shape
+		print ret[2].shape
+		print "===================================="
+	return ret
 
 def openFile (app):
 	fileName = tkFileDialog.askopenfilename(initialdir = "./dataset")

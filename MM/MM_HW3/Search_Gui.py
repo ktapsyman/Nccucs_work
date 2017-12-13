@@ -30,7 +30,7 @@ class Example(Frame):
 		self.pack(fill=BOTH, expand=True)
 
 		Label(self, font=("Courier", 12, "bold"), text = "Select File: ").grid(row=0, column=0, pady=5)
-		Button(self, text = "Click to select file", command = lambda : openFile(self)).grid(row=0, column=1, pady=5)
+		Button(self, text = "Click to select file", command = lambda : openFile(self)).grid(row=0, column=2, pady=5)
 		self.fileName = StringVar()
 		Label(self, textvariable=self.fileName, font=("Courier", 12)).grid(row=0, column=1, columnspan=2, pady=5, sticky=W)
 
@@ -75,23 +75,38 @@ def getTop10SimilarColorHist(img, imgList):
 
 def getTop10SimilarColorLayout(img, imgList):
 	targetColorLayout = img.getColorLayout()
-	return None #TODO
+	top10ColorLayout = [(image, l2Norm(targetColorLayout[0], image.getColorLayout()[0])+l2Norm(targetColorLayout[1], image.getColorLayout()[1])+l2Norm(targetColorLayout[2], image.getColorLayout()[2])) for image in imgList]
+	top10ColorLayout.sort(key=lambda x:x[1])
+
+	return top10ColorLayout[:10]
+
+def getTop10SIFT(img, imgList):
+	#TODO
+	return None
+
+def getTop10SIFTWithStopWords(img, imgList):
+	#TODO
+	return None
 
 def startSearching (app, fileName, mode):
 	imgList = []
 	targetImg = searchImageByName(fileName, app.allImages)
 	
 	if 0 != len(targetImg.getMetricResult(mode)):
-		imgList	= targetImg.getMetricResult[mode]
+		imgList	= targetImg.getMetricResult(mode)
 	else:
 		if mode == "Q1-ColorHistogram":
 			imgList = getTop10SimilarColorHist(targetImg, app.allImages)
+		
 		elif mode == "Q2-ColorLayout":
-			print mode
+			imgList = getTop10SimilarColorLayout(targetImg, app.allImages)
+		
 		elif mode == "Q3-SIFT Visual Words":
 			print mode
+		
 		elif mode == "Q4-Visual Words using stop words":
 			print mode
+		
 		targetImg.setMetricResult(imgList, metric=mode)
 	
 	app.updateImgList(mode, imgList)
