@@ -67,7 +67,8 @@ def getColorLayout(img, fileName):
 	for row in range(0, height-blockHeight, blockHeight):
 		for col in range(0, width-blockWidth, blockWidth):
 			#TODO : representitive color : average
-			partition = np.array(img.crop((row, col, row+blockHeight, col+blockWidth)).convert("YCbCr"))
+			partition = np.array(img.crop((row, col, row+blockHeight, col+blockWidth)))
+			print partition.shape
 			partitions.append((dctY, dctCb, dctCr))
 	return None
 
