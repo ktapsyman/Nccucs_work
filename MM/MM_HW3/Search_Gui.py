@@ -18,7 +18,25 @@ class Example(Frame):
 
 	def setAllImages(self, Images):
 		self.allImages = Images
-	
+		allSIFT = []
+		
+		for img in self.allImages:
+			currentDesc = [desc for desc in img.getSIFTVisualWords()]
+			allSIFT += currentDesc
+		nClusters = 12
+		kMeans = KMeans(n_clusters=nClusters).fit_predict(np.array(allSIFT))
+		
+		index = 0
+		for img in self.allImages:
+			descLen = len(img.getSIFTVisualWords())
+			currentLabels = kMeans[index:index+descLen]
+			enc = np.zeros(nClusters)
+			for label in currentLabels:
+				enc[label] += 1
+			img.setSIFTEncoding(enc)
+			index += descLen
+			
+
 	def cleanUp(self):
 		for img in self.allImages:
 			img.close()
@@ -42,17 +60,17 @@ class Example(Frame):
 
 		Button(self, text = "SEARCH!", command = lambda: startSearching(self, self.fileName.get(),mode.get())).grid(row=3, column=1, pady=5)
 		
-		for col in range(5):
+		for col in xrange(5):
 			titleLbl = Label(self, text=TITLE[col], font=("Courier", 12, "bold")).grid(row=4, column=col, padx=50)
 		
 		self.images = []
-		for rowCount in range(10):
-			for colCount in range(5):
+		for rowCount in xrange(10):
+			for colCount in xrange(5):
 				self.images.append(Label(self))
 				self.images[rowCount*5+colCount].grid(row=rowCount+5, column=colCount, pady=5, padx=5)
 	
 	def updateImgList(self, metric, imgList):
-		for rowCount in range(10):
+		for rowCount in xrange(10):
 			img = ImageTk.PhotoImage(Image.open("./dataset/"+imgList[rowCount][0].getFileName()).resize((50, 50), Image.ANTIALIAS))
 			self.images[rowCount*5].configure(text=rowCount+1)
 			self.images[rowCount*5+1].configure(text=imgList[rowCount][0].getFileName())
@@ -81,8 +99,11 @@ def getTop10SimilarColorLayout(img, imgList):
 	return top10ColorLayout[:10]
 
 def getTop10SIFT(img, imgList):
-	#TODO
-	return None
+	targetSIFT = img.getSIFTEncoding()
+	top10SIFT = [(image, l2Norm(targetSIFT, image.getSIFTEncoding())) for image in imgList]
+	top10SIFT.sort(key=lambda x:x[1])
+
+	return top10SIFT[:10]
 
 def getTop10SIFTWithStopWords(img, imgList):
 	#TODO
@@ -102,8 +123,8 @@ def startSearching (app, fileName, mode):
 			imgList = getTop10SimilarColorLayout(targetImg, app.allImages)
 		
 		elif mode == "Q3-SIFT Visual Words":
-			print mode
-		
+			imgList = getTop10SIFT(targetImg, app.allImages)
+
 		elif mode == "Q4-Visual Words using stop words":
 			print mode
 		

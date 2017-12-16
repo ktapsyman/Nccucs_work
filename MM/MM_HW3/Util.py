@@ -27,14 +27,19 @@ class customizedImage(object):
 			newImg = Image.new("RGB", self._img.size)
 			newImg.paste(self._img)
 			self._img = newImg
-		
-		if not os.path.isfile("./SIFT/"+fileName.split(".")[0]+".sift"):
-			sift.process_image("./dataset/"+fileName, "./SIFT/"+fileName.split(".")[0]+".sift")
+			newImg.save("./dataset/"+fileName)
+
+		SIFTFilename = "./SIFT/"+fileName.split(".")[0]+".sift"
+		if not os.path.isfile(SIFTFilename):
+			sift.process_image("./dataset/"+fileName, SIFTFilename)
+
 		self._colorHistogram = np.array(self._img.histogram())
 		self._colorLayout = getColorLayout(self._img, fileName)
 		self.MetricDic = {"Q1-ColorHistogram":[], "Q2-ColorLayout":[], "Q3-SIFT Visual Words":[], "Q4-Visual Words using stop words":[]}
-		self.SIFTVisualWords = None #TODO
-		self.SIFTWithStopWords = None #TODO
+		pos, descriptors = sift.read_features_from_file(SIFTFilename) 
+		self.SIFTVisualWords = []#descriptors
+		self.SIFTWithStopsiftDescriptorWords = None #TODO
+		self.SIFTEnc = []
 	
 	def show(self):
 		self._img.show()
@@ -52,7 +57,10 @@ class customizedImage(object):
 		return self._colorLayout
 	
 	def getSIFTVisualWords(self):
-		return self.SIFTVisualWords	
+		return self.SIFTVisualWords
+
+	def getSIFTEncoding(self):
+		return self.SIFTEnc
 	
 	def getSIFTWithStopWords(self):
 		return self.SIFTWithStopWords
@@ -62,6 +70,9 @@ class customizedImage(object):
 	
 	def setMetricResult(self, metricResult, metric="" ):#Top 10 only
 		self.MetricDic[metric] = metricResult
+	
+	def setSIFTEncoding(self, enc):
+		self.SIFTEnc = np.array(enc)
 
 def zigZag(array, row, col):
 	wPos = 0
@@ -91,24 +102,18 @@ def getColorLayout(img, fileName):
 	blockWidth = width/8
 	blockHeight = height/8
 	partitions = []
-	for row in range(0, height, blockHeight):
-		for col in range(0, width, blockWidth):
+	for row in xrange(0, height, blockHeight):
+		for col in xrange(0, width, blockWidth):
 			imgSlice = img.crop((row, col, row+blockHeight, col+blockWidth))
 			partition = np.array(imgSlice)
 			representativeIcon = partition.mean(axis=(0, 1))
 			imgSlice.paste((int(representativeIcon[0]), int(representativeIcon[1]), int(representativeIcon[2])), (0, 0, imgSlice.size[0], imgSlice.size[1]))
 			imgSlice = np.array(imgSlice.convert("YCbCr"))
-			dctY = imgSlice[0]
-			dctCb = imgSlice[1]
-			dctCr = imgSlice[2]
+			dctY = dct(imgSlice[0])
+			dctCb = dct(imgSlice[1])
+			dctCr = dct(imgSlice[2])
 			partitions.append((dctY, dctCb, dctCr))
 	ret = (np.array(zigZag([x[0] for x in partitions], 8, 8)), np.array(zigZag([x[1] for x in partitions], 8, 8)), np.array(zigZag([x[2] for x in partitions], 8, 8)))
-	if (64, 31, 3) == ret[0].shape or (64, 31, 3) == ret[1].shape or (64, 31, 3) == ret[2].shape:
-		print fileName
-		print ret[0].shape
-		print ret[1].shape
-		print ret[2].shape
-		print "===================================="
 	return ret
 
 def openFile (app):

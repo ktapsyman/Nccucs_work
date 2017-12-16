@@ -7,17 +7,18 @@ from numpy import *
 from pylab import *
 
 
-def process_image(imagename,resultname,params="--edge-thresh 10 --peak-thresh 5"):
+def process_image(imagename,resultname,params="--edge-thresh 15 --peak-thresh 3"):
 	""" Process an image and save the results in a file. """
-
+	
 	if imagename[-3:] != 'pgm':
 		# create a pgm file
 		im = Image.open(imagename).convert('L')
-		im.save('tmp.pgm')
-		imagename = 'tmp.pgm'
+		pgmName = imagename[:-4]+'.pgm'
+		im.save(pgmName)
+		imagename = pgmName
 
 	cmmd = str("sift "+imagename+" --output="+resultname+
-				" "+params)
+				" "+params + ";rm " + pgmName)
 	os.system(cmmd)
 	#print 'processed', imagename, 'to', resultname
 
@@ -26,6 +27,8 @@ def read_features_from_file(filename):
 	""" Read feature properties and return in matrix form. """
 	
 	f = loadtxt(filename)
+	if 0 == len(f):
+		return None, None
 	return f[:,:4],f[:,4:] # feature locations, descriptors
 
 
