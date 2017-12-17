@@ -60,10 +60,8 @@ def AmazonPredict():
 	print(TrainingX[0])
 	print(TestingX[0])
 	
-	"""
 	Smote = SMOTE()
 	TrainingX, TrainingLabel = Smote.fit_sample(TrainingX, TrainingLabel)
-	"""
 
 	Spliter = StratifiedShuffleSplit(n_splits=10, test_size=0.2, random_state=0)
 	
