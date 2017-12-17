@@ -5,6 +5,9 @@ Environment:
 	Python : 2.7.10
 """
 import os
+from copy import deepcopy
+import csv
+
 import numpy as np
 from scipy.fftpack import dct
 from sklearn.cluster import KMeans
@@ -17,10 +20,12 @@ from ttk import Frame, Button, Label, Style
 
 from PIL import ImageTk, Image
 
+
 class customizedImage(object):
-	def __init__(self, fileName, img):
+	def __init__(self, fileName, img, clothType):
 		self._img = img.resize((224, 256))
 		self._fileName = fileName
+		self.clothType = clothType
 
 		histogram = self._img.histogram()
 		if 256 == len(histogram):
@@ -36,10 +41,11 @@ class customizedImage(object):
 		self._colorHistogram = np.array(self._img.histogram())
 		self._colorLayout = getColorLayout(self._img, fileName)
 		self.MetricDic = {"Q1-ColorHistogram":[], "Q2-ColorLayout":[], "Q3-SIFT Visual Words":[], "Q4-Visual Words using stop words":[]}
-		pos, descriptors = sift.read_features_from_file(SIFTFilename) 
-		self.SIFTVisualWords = []#descriptors
-		self.SIFTWithStopsiftDescriptorWords = None #TODO
-		self.SIFTEnc = []
+		pos, descriptors = sift.read_features_from_file(SIFTFilename)
+		self.SIFTDescriptors = descriptors
+		self.SIFTEnc = {}#Encoded visual words
+		self.SIFTVisualWords = None
+		self.SIFTWithoutStopWords = None
 	
 	def show(self):
 		self._img.show()
@@ -50,20 +56,26 @@ class customizedImage(object):
 	def getFileName(self):
 		return self._fileName
 	
+	def getClothType(self):
+		return self.clothType
+
 	def getColorHistogram(self):
 		return self._colorHistogram
 
 	def getColorLayout(self):
 		return self._colorLayout
 	
+	def getSIFTDescriptors(self):
+		return self.SIFTDescriptors
+
 	def getSIFTVisualWords(self):
 		return self.SIFTVisualWords
 
 	def getSIFTEncoding(self):
 		return self.SIFTEnc
 	
-	def getSIFTWithStopWords(self):
-		return self.SIFTWithStopWords
+	def getSIFTWithoutStopWords(self):
+		return self.SIFTWithoutStopWords
 	
 	def getMetricResult(self, metric=""):
 		return self.MetricDic[metric]	
@@ -72,7 +84,13 @@ class customizedImage(object):
 		self.MetricDic[metric] = metricResult
 	
 	def setSIFTEncoding(self, enc):
-		self.SIFTEnc = np.array(enc)
+		self.SIFTEnc = enc
+	
+	def setSIFTVisualWords(self, visualWords):
+		self.SIFTVisualWords = visualWords
+	
+	def setSIFTWithoutStopWords(self, visualWordsWithoutStopWords):
+		self.SIFTWithoutStopWords = visualWordsWithoutStopWords
 
 def zigZag(array, row, col):
 	wPos = 0
@@ -115,6 +133,18 @@ def getColorLayout(img, fileName):
 			partitions.append((dctY, dctCb, dctCr))
 	ret = (np.array(zigZag([x[0] for x in partitions], 8, 8)), np.array(zigZag([x[1] for x in partitions], 8, 8)), np.array(zigZag([x[2] for x in partitions], 8, 8)))
 	return ret
+
+def readMetaData(filePath):
+	meta = {}
+	with open(filePath, "rb") as metaFile:
+		metaReader = csv.reader(metaFile, delimiter=",")
+		isHeader = True#for skipping header
+		for row in metaReader:
+			if isHeader:
+				isHeader = False
+				continue
+			meta[row[0]] = row[1]
+	return meta
 
 def openFile (app):
 	fileName = tkFileDialog.askopenfilename(initialdir = "./dataset")

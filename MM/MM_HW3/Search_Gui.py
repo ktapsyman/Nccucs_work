@@ -21,21 +21,30 @@ class Example(Frame):
 		allSIFT = []
 		
 		for img in self.allImages:
-			currentDesc = [desc for desc in img.getSIFTVisualWords()]
+			currentDesc = [desc for desc in img.getSIFTDescriptors()]
 			allSIFT += currentDesc
-		nClusters = 12
-		kMeans = KMeans(n_clusters=nClusters).fit_predict(np.array(allSIFT))
-		
 		index = 0
+		nClusters = 20
+		allEncDict = dict((x, 0) for x in xrange(nClusters))
+
+		kMeans = KMeans(n_clusters=nClusters).fit_predict(np.array(allSIFT))
 		for img in self.allImages:
-			descLen = len(img.getSIFTVisualWords())
+			descLen = len(img.getSIFTDescriptors())
 			currentLabels = kMeans[index:index+descLen]
-			enc = np.zeros(nClusters)
+			enc = dict((x, 0) for x in xrange(nClusters))
 			for label in currentLabels:
 				enc[label] += 1
+				allEncDict[label] += 1
 			img.setSIFTEncoding(enc)
+			img.setSIFTVisualWords(np.array(enc.values()))
 			index += descLen
-			
+
+		topStopWords = sorted(allEncDict.items(), key=lambda x : x[1], reverse=True)[:int(nClusters/10)]
+		for img in self.allImages:
+			visualWordsWithoutStopWords = deepcopy(img.getSIFTEncoding())
+			for stopWord in topStopWords:
+				visualWordsWithoutStopWords.pop(stopWord[0], None)
+			img.setSIFTWithoutStopWords(np.array(visualWordsWithoutStopWords.values()))
 
 	def cleanUp(self):
 		for img in self.allImages:
@@ -85,34 +94,71 @@ def searchImageByName(fileName, imgList):
 			return img
 	return None
 
+def searchClothSubsetByType(imglist, clothType):
+	return filter(lambda x : x.getClothType()==clothType, imglist)
+
+def createQuerySet(imgSubset, imgList):
+	return [x for x in imgList if x not in imgSubset]
+
 def getTop10SimilarColorHist(img, imgList):
 	targetHist = img.getColorHistogram()
-	top10ColorHist = [(image, l2Norm(targetHist, image.getColorHistogram())) for image in imgList]
-	top10ColorHist.sort(key=lambda x:x[1])
+	top10ColorHist = []
+
+	targetSubset = searchClothSubsetByType(imgList, img.getClothType())
+	if len(targetSubset) >= 10:
+		top10ColorHist = [(image, l2Norm(targetHist, image.getColorHistogram())) for image in targetSubset]
+		top10ColorHist.sort(key=lambda x:x[1])
+	else:
+		querySet = createQuerySet(targetSubset, imgList)
+		top10ColorHist = sorted([(image, l2Norm(targetHist, image.getColorHistogram())) for image in targetSubset], key=lambda x:x[1]) + sorted([(image, l2Norm(targetHist, image.getColorHistogram())) for image in querySet], key=lambda x:x[1])[:10-len(targetSubset)]
+
 	return top10ColorHist[:10]
 
 def getTop10SimilarColorLayout(img, imgList):
 	targetColorLayout = img.getColorLayout()
-	top10ColorLayout = [(image, 0.8*l2Norm(targetColorLayout[0], image.getColorLayout()[0])+0.1*l2Norm(targetColorLayout[1], image.getColorLayout()[1])+0.1*l2Norm(targetColorLayout[2], image.getColorLayout()[2])) for image in imgList]
-	top10ColorLayout.sort(key=lambda x:x[1])
+	top10ColorLayout = []
+
+	targetSubset = searchClothSubsetByType(imgList, img.getClothType())
+	if len(targetSubset) >= 10:
+		top10ColorLayout = [(image, 0.8*l2Norm(targetColorLayout[0], image.getColorLayout()[0])+0.1*l2Norm(targetColorLayout[1], image.getColorLayout()[1])+0.1*l2Norm(targetColorLayout[2], image.getColorLayout()[2])) for image in targetSubset]
+		top10ColorLayout.sort(key=lambda x:x[1])
+	else:
+		querySet = createQuerySet(targetSubset, imgList)
+		top10ColorLayout = sorted([(image, 0.8*l2Norm(targetColorLayout[0], image.getColorLayout()[0])+0.1*l2Norm(targetColorLayout[1], image.getColorLayout()[1])+0.1*l2Norm(targetColorLayout[2], image.getColorLayout()[2])) for image in targetSubset], key=lambda x:x[1])+sorted([(image, 0.8*l2Norm(targetColorLayout[0], image.getColorLayout()[0])+0.1*l2Norm(targetColorLayout[1], image.getColorLayout()[1])+0.1*l2Norm(targetColorLayout[2], image.getColorLayout()[2])) for image in querySet], key=lambda x:x[1])[:10-len(targetSubset)]
 
 	return top10ColorLayout[:10]
 
 def getTop10SIFT(img, imgList):
-	targetSIFT = img.getSIFTEncoding()
-	top10SIFT = [(image, l2Norm(targetSIFT, image.getSIFTEncoding())) for image in imgList]
-	top10SIFT.sort(key=lambda x:x[1])
+	targetSIFT = img.getSIFTVisualWords()
+	top10SIFT = []
 
+	targetSubset = searchClothSubsetByType(imgList, img.getClothType())
+	if len(targetSubset) >= 10:
+		top10SIFT = [(image, l2Norm(targetSIFT, image.getSIFTVisualWords())) for image in targetSubset]
+		top10SIFT.sort(key=lambda x:x[1])
+	else:
+		querySet = createQuerySet(targetSubset, imgList)
+		top10SIFT = sorted([(image, l2Norm(targetSIFT, image.getSIFTVisualWords())) for image in targetSubset], key=lambda x:x[1]) + sorted([(image, l2Norm(targetSIFT, image.getSIFTVisualWords())) for image in querySet])[:10-len(targetSubset)]
+		
 	return top10SIFT[:10]
 
-def getTop10SIFTWithStopWords(img, imgList):
-	#TODO
-	return None
+def getTop10SIFTWithoutStopWords(img, imgList):
+	targetSIFT = img.getSIFTWithoutStopWords()
+	top10SIFT = []
+
+	targetSubset = searchClothSubsetByType(imgList, img.getClothType())
+	if len(targetSubset) >= 10:
+		top10SIFT = [(image, l2Norm(targetSIFT, image.getSIFTWithoutStopWords())) for image in targetSubset]
+		top10SIFT.sort(key=lambda x:x[1])
+	else:
+		querySet = createQuerySet(targetSubset, imgList)
+		top10SIFT = sorted([(image, l2Norm(targetSIFT, image.getSIFTWithoutStopWords())) for image in targetSubset], key=lambda x:x[1]) + sorted([(image, l2Norm(targetSIFT, image.getSIFTWithoutStopWords())) for image in querySet])[:10-len(targetSubset)]
+
+	return top10SIFT[:10]
 
 def startSearching (app, fileName, mode):
 	imgList = []
 	targetImg = searchImageByName(fileName, app.allImages)
-	
 	if 0 != len(targetImg.getMetricResult(mode)):
 		imgList	= targetImg.getMetricResult(mode)
 	else:
@@ -126,7 +172,7 @@ def startSearching (app, fileName, mode):
 			imgList = getTop10SIFT(targetImg, app.allImages)
 
 		elif mode == "Q4-Visual Words using stop words":
-			print mode
+			imgList = getTop10SIFTWithoutStopWords(targetImg, app.allImages)
 		
 		targetImg.setMetricResult(imgList, metric=mode)
 	
@@ -137,7 +183,8 @@ if __name__ == '__main__':
 	size = 800, 1280
 
 	app = Example(root)
-	app.setAllImages([customizedImage(img, Image.open("./dataset/"+img)) for img in os.listdir("./dataset") if ".jpg" in img])
+	metaData = readMetaData("./clothing_metadata.csv")
+	app.setAllImages([customizedImage(img, Image.open("./dataset/"+img), metaData[img[:-4]]) for img in os.listdir("./dataset") if ".jpg" in img])
 	root.geometry("1280x800")
 	root.mainloop()
 	app.cleanUp()
