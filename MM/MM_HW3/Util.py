@@ -1,8 +1,12 @@
 """
 Author : 106753027 Jung, Liang@NCCUCS
 Environment:
-	OS : MacOS Sierra
-	Python : 2.7.10
+	OS : Ubuntu 16.04 LTS
+	Python : 2.7.12
+	Numpy : 1.13.3
+	Scipy : 1.0.0
+	Sklearn : 0.19.1
+	Pillow : 4.3.0
 """
 import os
 from copy import deepcopy
