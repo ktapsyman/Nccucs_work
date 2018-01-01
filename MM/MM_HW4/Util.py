@@ -22,10 +22,9 @@ from PIL import ImageTk, Image
 
 
 class customizedImage(object):
-	def __init__(self, fileName, img, clothType):
-		self._img = img.resize((224, 256))
+	def __init__(self, fileName, img):
+		self._img = img#.resize((224, 256))
 		self._fileName = fileName
-		self.clothType = clothType
 
 		histogram = self._img.histogram()
 		if 256 == len(histogram):
@@ -39,8 +38,7 @@ class customizedImage(object):
 			sift.process_image("./dataset/"+fileName, SIFTFilename)
 
 		self._colorHistogram = np.array(self._img.histogram())
-		self._colorLayout = getColorLayout(self._img, fileName)
-		self.MetricDic = {"Q1-ColorHistogram":[], "Q2-ColorLayout":[], "Q3-SIFT Visual Words":[], "Q4-Visual Words using stop words":[]}
+		self._colorLayout = None#getColorLayout(self._img, fileName)
 		pos, descriptors = sift.read_features_from_file(SIFTFilename)
 		self.SIFTDescriptors = descriptors
 		self.SIFTEnc = {}#Encoded visual words
@@ -56,9 +54,6 @@ class customizedImage(object):
 	def getFileName(self):
 		return self._fileName
 	
-	def getClothType(self):
-		return self.clothType
-
 	def getColorHistogram(self):
 		return self._colorHistogram
 
@@ -77,12 +72,6 @@ class customizedImage(object):
 	def getSIFTWithoutStopWords(self):
 		return self.SIFTWithoutStopWords
 	
-	def getMetricResult(self, metric=""):
-		return self.MetricDic[metric]	
-	
-	def setMetricResult(self, metricResult, metric="" ):#Top 10 only
-		self.MetricDic[metric] = metricResult
-	
 	def setSIFTEncoding(self, enc):
 		self.SIFTEnc = enc
 	
@@ -91,6 +80,16 @@ class customizedImage(object):
 	
 	def setSIFTWithoutStopWords(self, visualWordsWithoutStopWords):
 		self.SIFTWithoutStopWords = visualWordsWithoutStopWords
+	
+	def toMosaic(self, candidates, blockWidth, blockHeight):
+		imageBlocks = splitImageToBlocks(self, blockWidth, blockHeight)
+		for block in imageBlocks:
+			continue
+		mosaicImg = composeImg()
+
+def splitImageToBlocks(img, blockWidth, blockHeight):
+	#TODO
+	return []
 
 def zigZag(array, row, col):
 	wPos = 0
@@ -134,21 +133,62 @@ def getColorLayout(img, fileName):
 	ret = (np.array(zigZag([x[0] for x in partitions], 8, 8)), np.array(zigZag([x[1] for x in partitions], 8, 8)), np.array(zigZag([x[2] for x in partitions], 8, 8)))
 	return ret
 
-def readMetaData(filePath):
-	meta = {}
-	with open(filePath, "rb") as metaFile:
-		metaReader = csv.reader(metaFile, delimiter=",")
-		isHeader = True#for skipping header
-		for row in metaReader:
-			if isHeader:
-				isHeader = False
-				continue
-			meta[row[0]] = row[1]
-	return meta
+def searchBestCandidate (img, imgList, mode):
+	bestCandidate = None
+	if mode == "ColorHistogram":
+		bestCandidate = getMostSimilarColorHist(img, imgList)
+	
+	elif mode == "ColorLayout":
+		bestCandidate = getMostSimilarColorLayout(targetImg, app.allImages)
+	
+	elif mode == "SIFT Visual Words":
+		bestCandidate = getMostSimilarSIFT(targetImg, app.allImages)
+
+	elif mode == "Visual Words using stop words":
+		bestCandidate = getMostSimilarSIFTWithoutStopWords(targetImg, app.allImages)
+		
+
+def getMostSimilarColorHist(img, imgList):
+	targetHist = img.getColorHistogram()
+	topColorHist = []
+
+	topColorHist = [(image, l2Norm(targetHist, image.getColorHistogram())) for image in imgList]
+	topColorHist.sort(key=lambda x:x[1])
+
+	return topColorHist[0]
+
+def getMostSimilarColorLayout(img, imgList):
+	targetColorLayout = img.getColorLayout()
+	topColorLayout = []
+
+	topColorLayout = [(image, 0.8*l2Norm(targetColorLayout[0], image.getColorLayout()[0])+0.1*l2Norm(targetColorLayout[1], image.getColorLayout()[1])+0.1*l2Norm(targetColorLayout[2], image.getColorLayout()[2])) for image in imgList]
+	topColorLayout.sort(key=lambda x:x[1])
+
+	return topColorLayout[0]
+
+def getMostSimilarSIFT(img, imgList):
+	targetSIFT = img.getSIFTVisualWords()
+	topSIFT = []
+
+	topSIFT = [(image, l2Norm(targetSIFT, image.getSIFTVisualWords())) for image in imgList]
+	topSIFT.sort(key=lambda x:x[1])
+		
+	return top10SIFT[0]
+
+def getMostSimilarSIFTWithoutStopWords(img, imgList):
+	targetSIFT = img.getSIFTWithoutStopWords()
+	topSIFT = []
+
+	topSIFT = [(image, l2Norm(targetSIFT, image.getSIFTWithoutStopWords())) for image in imgList]
+	topSIFT.sort(key=lambda x:x[1])
+
+	return topSIFT[0]
 
 def openFile (app):
 	fileName = tkFileDialog.askopenfilename(initialdir = "./dataset")
 	app.fileName.set(os.path.split(fileName)[1])
+	app.currentImg = customizedImage(fileName, Image.open(fileName))
+	print fileName
 
 
 def l2Norm(vec1, vec2):
