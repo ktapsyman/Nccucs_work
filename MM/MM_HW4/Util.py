@@ -20,76 +20,35 @@ from ttk import Frame, Button, Label, Style
 
 from PIL import ImageTk, Image
 
+BLOCK_SIZE_LIST = [5, 10, 20, 40, 80]
 
-class customizedImage(object):
-	def __init__(self, fileName, img):
-		self._img = img#.resize((224, 256))
-		self._fileName = fileName
+class ImageWithCache(object):
+	def __init__(self, img):
+		self.img = img
 
-		histogram = self._img.histogram()
-		if 256 == len(histogram):
-			newImg = Image.new("RGB", self._img.size)
-			newImg.paste(self._img)
-			self._img = newImg
-			newImg.save("./dataset/"+fileName)
+		weight, height = self.img.size
 
-		SIFTFilename = "./SIFT/"+fileName.split(".")[0]+".sift"
-		if not os.path.isfile(SIFTFilename):
-			sift.process_image("./dataset/"+fileName, SIFTFilename)
-
-		self._colorHistogram = np.array(self._img.histogram())
-		self._colorLayout = None#getColorLayout(self._img, fileName)
-		pos, descriptors = sift.read_features_from_file(SIFTFilename)
-		self.SIFTDescriptors = descriptors
-		self.SIFTEnc = {}#Encoded visual words
-		self.SIFTVisualWords = None
-		self.SIFTWithoutStopWords = None
-	
-	def show(self):
-		self._img.show()
-
+		self.metricDic = {"ColorHistogram":{}, "ColorLayout":{}}
+		
+		for blockSize in BLOCK_SIZE_LIST:
+			currentSizeImg = img.resize((weight/blockSize, height/blockSize))
+			self.metricDic["ColorHistogram"][blockSize] = getColorHistogram(currentSizeImg)
+			self.metricDic["ColorLayout"][blockSize] = getColorLayout(currentSizeImg)
 	def close(self):
-		self._img.close()
-	
-	def getFileName(self):
-		return self._fileName
-	
-	def getColorHistogram(self):
-		return self._colorHistogram
+		self.img.close()
 
-	def getColorLayout(self):
-		return self._colorLayout
+def splitImageToBlocks(img, blockSize):
+	width, height = img.size
+	blockWidth = width/blockSize
+	blockHeight = height/blockSize
 	
-	def getSIFTDescriptors(self):
-		return self.SIFTDescriptors
+	retImgBlocks = []
 
-	def getSIFTVisualWords(self):
-		return self.SIFTVisualWords
-
-	def getSIFTEncoding(self):
-		return self.SIFTEnc
-	
-	def getSIFTWithoutStopWords(self):
-		return self.SIFTWithoutStopWords
-	
-	def setSIFTEncoding(self, enc):
-		self.SIFTEnc = enc
-	
-	def setSIFTVisualWords(self, visualWords):
-		self.SIFTVisualWords = visualWords
-	
-	def setSIFTWithoutStopWords(self, visualWordsWithoutStopWords):
-		self.SIFTWithoutStopWords = visualWordsWithoutStopWords
-	
-	def toMosaic(self, candidates, blockWidth, blockHeight):
-		imageBlocks = splitImageToBlocks(self, blockWidth, blockHeight)
-		for block in imageBlocks:
-			continue
-		mosaicImg = composeImg()
-
-def splitImageToBlocks(img, blockWidth, blockHeight):
-	#TODO
-	return []
+	for row in xrange(blockSize):
+		retImgBlocks.append([])
+		for col in xrange(blockSize):
+			retImgBlocks[row].append(img.crop((col*blockWidth, row*blockHeight, (col+1)*blockWidth, (row+1)*blockHeight)))
+	return retImgBlocks
 
 def zigZag(array, row, col):
 	wPos = 0
@@ -113,82 +72,83 @@ def zigZag(array, row, col):
 	ret.append(array[-1])
 	return ret
 			
+def getColorHistogram(img):
+	return np.array(img.histogram())
 
-def getColorLayout(img, fileName):
+def getColorLayout(img):
+	width, height = img.size
+	if width < 8:
+		if height < 8:
+			img = img.resize((8, 8))
+		else:
+			img = img.resize((8, height))
+	elif height < 8:
+		img = img.resize((width, 8))
+		
 	width, height = img.size
 	blockWidth = width/8
 	blockHeight = height/8
 	partitions = []
+
 	for row in xrange(0, height, blockHeight):
 		for col in xrange(0, width, blockWidth):
-			imgSlice = img.crop((row, col, row+blockHeight, col+blockWidth))
+			imgSlice = img.crop((col, row, col+blockWidth, row+blockHeight))
 			partition = np.array(imgSlice)
 			representativeIcon = partition.mean(axis=(0, 1))
 			imgSlice.paste((int(representativeIcon[0]), int(representativeIcon[1]), int(representativeIcon[2])), (0, 0, imgSlice.size[0], imgSlice.size[1]))
-			imgSlice = np.array(imgSlice.convert("YCbCr"))
-			dctY = dct(imgSlice[0])
-			dctCb = dct(imgSlice[1])
-			dctCr = dct(imgSlice[2])
-			partitions.append((dctY, dctCb, dctCr))
-	ret = (np.array(zigZag([x[0] for x in partitions], 8, 8)), np.array(zigZag([x[1] for x in partitions], 8, 8)), np.array(zigZag([x[2] for x in partitions], 8, 8)))
-	return ret
 
-def searchBestCandidate (img, imgList, mode):
+			imgSlice = imgSlice.convert("YCbCr")
+			Y, Cb, Cr = imgSlice.split()
+			dctY = dct(Y)
+			dctCb = dct(Cb)
+			dctCr = dct(Cr)
+			partitions.append((dctY, dctCb, dctCr))
+
+	colorLayout = (np.array(zigZag([x[0] for x in partitions], 8, 8)), np.array(zigZag([x[1] for x in partitions], 8, 8)), np.array(zigZag([x[2] for x in partitions], 8, 8)))
+
+	return np.array(colorLayout)
+
+def searchBestCandidate (img, imgList, mode, blockSize):
 	bestCandidate = None
 	if mode == "ColorHistogram":
-		bestCandidate = getMostSimilarColorHist(img, imgList)
+		bestCandidate = getMostSimilarColorHist(img, imgList, blockSize)
 	
 	elif mode == "ColorLayout":
-		bestCandidate = getMostSimilarColorLayout(targetImg, app.allImages)
+		bestCandidate = getMostSimilarColorLayout(img, imgList, blockSize)
 	
-	elif mode == "SIFT Visual Words":
-		bestCandidate = getMostSimilarSIFT(targetImg, app.allImages)
+	return bestCandidate
 
-	elif mode == "Visual Words using stop words":
-		bestCandidate = getMostSimilarSIFTWithoutStopWords(targetImg, app.allImages)
-		
+def getMostSimilarColorHist(img, imgDataset, blockSize):
+	targetHist = getColorHistogram(img)
 
-def getMostSimilarColorHist(img, imgList):
-	targetHist = img.getColorHistogram()
-	topColorHist = []
-
-	topColorHist = [(image, l2Norm(targetHist, image.getColorHistogram())) for image in imgList]
+	topColorHist = [(imageContainer.img, l2Norm(targetHist, imageContainer.metricDic["ColorHistogram"][blockSize])) for imageContainer in imgDataset]
 	topColorHist.sort(key=lambda x:x[1])
 
-	return topColorHist[0]
+	return topColorHist[0][0]
 
-def getMostSimilarColorLayout(img, imgList):
-	targetColorLayout = img.getColorLayout()
+def getMostSimilarColorLayout(img, imgDataset, blockSize):
+	targetColorLayout = getColorLayout(img)
 	topColorLayout = []
 
-	topColorLayout = [(image, 0.8*l2Norm(targetColorLayout[0], image.getColorLayout()[0])+0.1*l2Norm(targetColorLayout[1], image.getColorLayout()[1])+0.1*l2Norm(targetColorLayout[2], image.getColorLayout()[2])) for image in imgList]
+	for imageContainer in imgDataset:
+		currentColorLayout = imageContainer.metricDic["ColorLayout"][blockSize]
+		topColorLayout.append((imageContainer.img, 
+		0.8*l2Norm(targetColorLayout[0], currentColorLayout[0])+
+		0.1*l2Norm(targetColorLayout[1], currentColorLayout[1])+
+		0.1*l2Norm(targetColorLayout[2], currentColorLayout[2])))
+
 	topColorLayout.sort(key=lambda x:x[1])
 
-	return topColorLayout[0]
-
-def getMostSimilarSIFT(img, imgList):
-	targetSIFT = img.getSIFTVisualWords()
-	topSIFT = []
-
-	topSIFT = [(image, l2Norm(targetSIFT, image.getSIFTVisualWords())) for image in imgList]
-	topSIFT.sort(key=lambda x:x[1])
-		
-	return top10SIFT[0]
-
-def getMostSimilarSIFTWithoutStopWords(img, imgList):
-	targetSIFT = img.getSIFTWithoutStopWords()
-	topSIFT = []
-
-	topSIFT = [(image, l2Norm(targetSIFT, image.getSIFTWithoutStopWords())) for image in imgList]
-	topSIFT.sort(key=lambda x:x[1])
-
-	return topSIFT[0]
+	return topColorLayout[0][0]
 
 def openFile (app):
 	fileName = tkFileDialog.askopenfilename(initialdir = "./dataset")
 	app.fileName.set(os.path.split(fileName)[1])
-	app.currentImg = customizedImage(fileName, Image.open(fileName))
-	print fileName
+	app.currentImg = Image.open(fileName).resize((640, 480))
+
+	tkImg = ImageTk.PhotoImage(app.currentImg, Image.ANTIALIAS)
+	app.imgContainer["Original"].configure(image=tkImg)
+	app.imgContainer["Original"].image = tkImg
 
 
 def l2Norm(vec1, vec2):
