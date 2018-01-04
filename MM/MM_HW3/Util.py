@@ -43,7 +43,7 @@ class customizedImage(object):
 			sift.process_image("./dataset/"+fileName, SIFTFilename)
 
 		self._colorHistogram = np.array(self._img.histogram())
-		self._colorLayout = getColorLayout(self._img, fileName)
+		self._colorLayout = getColorLayout(self._img)
 		self.MetricDic = {"Q1-ColorHistogram":[], "Q2-ColorLayout":[], "Q3-SIFT Visual Words":[], "Q4-Visual Words using stop words":[]}
 		pos, descriptors = sift.read_features_from_file(SIFTFilename)
 		self.SIFTDescriptors = descriptors
@@ -119,7 +119,7 @@ def zigZag(array, row, col):
 	return ret
 			
 
-def getColorLayout(img, fileName):
+def getColorLayout(img):
 	width, height = img.size
 	blockWidth = width/8
 	blockHeight = height/8

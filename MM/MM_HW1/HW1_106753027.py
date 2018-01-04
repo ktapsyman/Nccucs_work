@@ -271,7 +271,7 @@ def Q12(Elsa, Flower):
 
 	FlowerPixels = Flower.load()
 	
-	Width, Height = Elsa.size #We have to assume that they has the same size
+	Width, Height = Elsa.size #We have to assume that they have the same size
 
 	for X in xrange(Width):
 		for Y in xrange(Height):
