@@ -37,8 +37,8 @@ class Example(Frame):
 
 		Label(self, text = "Select Mode: ", font=("Courier", 12, "bold")).grid(row=1, column=0, pady=5)
 		self.mode = StringVar(self)
-		self.mode.set("ColorHistogram")
-		modeOm = OptionMenu(self, self.mode, "ColorHistogram", "ColorLayout").grid(row=1, column=1, pady=5, sticky=W)
+		self.mode.set("AverageRGB")
+		modeOm = OptionMenu(self, self.mode, "AverageRGB", "AverageHSV", "ColorHistogramRGB", "ColorHistogramHSV", "ColorLayout").grid(row=1, column=1, pady=5, sticky=W)
 		
 		Label(self, text = "Block size: ", font=("Courier", 12, "bold")).grid(row=2, column=0, pady=5)
 		self.blockSize = IntVar(self)
@@ -59,6 +59,9 @@ def startMosaic(app, originalImg, imgDataset, mode, blockSize):
 		print "Something goes wrong...images should not be None!"
 		return
 	
+	if mode == "AverageHSV" or mode == "ColorHistogramHSV":
+		originalImg = originalImg.convert("HSV")
+
 	width, height = originalImg.size
 	blockWidth = width/blockSize
 	blockHeight = height/blockSize
@@ -73,7 +76,7 @@ def startMosaic(app, originalImg, imgDataset, mode, blockSize):
 		for col in xrange(blockSize):
 			mosaicImg.paste(searchBestCandidate(imgBlocks[row][col], imgDataset, mode, blockSize), (col*blockWidth, row*blockHeight))
 
-	mosaicImg.show()
+	#mosaicImg.show()
 	
 	tkImg = ImageTk.PhotoImage(mosaicImg, Image.ANTIALIAS)
 	app.imgContainer["Mosaic"].configure(image=tkImg)
@@ -84,7 +87,7 @@ if __name__ == '__main__':
 	size = 960, 1280
 
 	app = Example(root)
-	app.setAllImages([ImageWithCache(Image.open("./dataset/"+imgName)) for imgName in os.listdir("./dataset") if ".jpg" in imgName])
+	app.setAllImages([ImageWithCache(Image.open("./dataset/"+imgName), imgName) for imgName in os.listdir("./dataset") if ".jpg" in imgName])
 	root.geometry("1280x960")
 	root.mainloop()
 	app.cleanUp()

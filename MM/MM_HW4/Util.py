@@ -23,17 +23,23 @@ from PIL import ImageTk, Image
 BLOCK_SIZE_LIST = [5, 10, 20, 40, 80]
 
 class ImageWithCache(object):
-	def __init__(self, img):
+	def __init__(self, img, filename):
 		self.img = img
+		self.filename = filename
+		width, height = self.img.size
 
-		weight, height = self.img.size
-
-		self.metricDic = {"ColorHistogram":{}, "ColorLayout":{}}
+		self.metricDic = {"AverageRGB":{}, "AverageHSV":{}, "ColorHistogramRGB":{}, "ColorHistogramHSV":{}, "ColorLayout":{}}
 		
 		for blockSize in BLOCK_SIZE_LIST:
-			currentSizeImg = img.resize((weight/blockSize, height/blockSize))
-			self.metricDic["ColorHistogram"][blockSize] = getColorHistogram(currentSizeImg)
-			self.metricDic["ColorLayout"][blockSize] = getColorLayout(currentSizeImg)
+			currentSizeImg = img.resize((width/blockSize, height/blockSize))
+			self.metricDic["AverageRGB"][blockSize] = (currentSizeImg, getAverageColor(currentSizeImg))
+			self.metricDic["ColorHistogramRGB"][blockSize] = (currentSizeImg, getColorHistogram(currentSizeImg))
+			self.metricDic["ColorLayout"][blockSize] = (currentSizeImg, getColorLayout(currentSizeImg))
+
+			currentSizeImg = currentSizeImg.convert("HSV")
+			self.metricDic["AverageHSV"][blockSize] = (currentSizeImg, getAverageColor(currentSizeImg))
+			self.metricDic["ColorHistogramHSV"][blockSize] = (currentSizeImg, getColorHistogram(currentSizeImg))
+
 	def close(self):
 		self.img.close()
 
@@ -71,7 +77,16 @@ def zigZag(array, row, col):
 			hPos -= direction
 	ret.append(array[-1])
 	return ret
-			
+
+def getAverageColor(img):
+	pixels = img.load()
+	width, height = img.size
+
+	allPixelsArr = np.array([(pixels[X, Y][0], pixels[X, Y][1], pixels[X, Y][2]) for X in xrange(width) for Y in xrange(height)])
+
+	average = np.mean(allPixelsArr, axis=0)
+	return average
+
 def getColorHistogram(img):
 	return np.array(img.histogram())
 
@@ -110,18 +125,49 @@ def getColorLayout(img):
 
 def searchBestCandidate (img, imgList, mode, blockSize):
 	bestCandidate = None
-	if mode == "ColorHistogram":
-		bestCandidate = getMostSimilarColorHist(img, imgList, blockSize)
+
+	if mode == "AverageRGB":
+		bestCandidate = getMostSimilarAvg(img, imgList, blockSize, mode="RGB")
+
+	elif mode == "AverageHSV":
+		bestCandidate = getMostSimilarAvg(img, imgList, blockSize, mode="HSV")
+
+	elif mode == "ColorHistogramRGB":
+		bestCandidate = getMostSimilarColorHist(img, imgList, blockSize, mode="RGB")
+
+	elif mode == "ColorHistogramHSV":
+		bestCandidate = getMostSimilarColorHist(img, imgList, blockSize, mode="HSV")
 	
 	elif mode == "ColorLayout":
 		bestCandidate = getMostSimilarColorLayout(img, imgList, blockSize)
-	
+
 	return bestCandidate
 
-def getMostSimilarColorHist(img, imgDataset, blockSize):
-	targetHist = getColorHistogram(img)
+def getMostSimilarAvg(img, imgDataset, blockSize, mode="RGB"):
+	targetHist = getAverageColor(img)
+	topColorHist = []
 
-	topColorHist = [(imageContainer.img, l2Norm(targetHist, imageContainer.metricDic["ColorHistogram"][blockSize])) for imageContainer in imgDataset]
+	if mode == "RGB":
+		topColorHist = [(imageContainer.metricDic["AverageRGB"][blockSize][0], l2Norm(targetHist, imageContainer.metricDic["AverageRGB"][blockSize][1])) for imageContainer in imgDataset]
+
+	elif mode == "HSV":
+		topColorHist = [(imageContainer.metricDic["AverageHSV"][blockSize][0], l2Norm(targetHist, imageContainer.metricDic["AverageHSV"][blockSize][1])) for imageContainer in imgDataset]
+	
+	topColorHist.sort(key=lambda x:x[1])
+
+	return topColorHist[0][0]
+	
+
+def getMostSimilarColorHist(img, imgDataset, blockSize, mode="RGB"):
+	targetHist = getColorHistogram(img)
+	topColorHist = []
+
+	if mode == "RGB":
+		topColorHist = [(imageContainer.metricDic["ColorHistogramRGB"][blockSize][0], l2Norm(targetHist, imageContainer.metricDic["ColorHistogramRGB"][blockSize][1])) for imageContainer in imgDataset]
+		
+	elif mode == "HSV":
+		topColorHist = [(imageContainer.metricDic["ColorHistogramHSV"][blockSize][0], l2Norm(targetHist, imageContainer.metricDic["ColorHistogramHSV"][blockSize][1])) for imageContainer in imgDataset]
+		
 	topColorHist.sort(key=lambda x:x[1])
 
 	return topColorHist[0][0]
@@ -131,14 +177,16 @@ def getMostSimilarColorLayout(img, imgDataset, blockSize):
 	topColorLayout = []
 
 	for imageContainer in imgDataset:
-		currentColorLayout = imageContainer.metricDic["ColorLayout"][blockSize]
-		topColorLayout.append((imageContainer.img, 
+		currentColorLayout = imageContainer.metricDic["ColorLayout"][blockSize][1]
+		topColorLayout.append((imageContainer.metricDic["ColorLayout"][blockSize][0], 
 		0.8*l2Norm(targetColorLayout[0], currentColorLayout[0])+
 		0.1*l2Norm(targetColorLayout[1], currentColorLayout[1])+
 		0.1*l2Norm(targetColorLayout[2], currentColorLayout[2])))
 
 	topColorLayout.sort(key=lambda x:x[1])
-
+	for item in topColorLayout[:10]:
+		print item[1]
+	print "============================"
 	return topColorLayout[0][0]
 
 def openFile (app):
