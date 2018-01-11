@@ -19,12 +19,12 @@ Classifiers = [
 ]
 
 FEATURE_COLUMN = [u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"租賃總面積平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
-HOUSE_TYPE = [u"住宅", u"華廈", u"公寓", u"套房"]
+HOUSE_TYPE = [u"住宅大樓", u"華廈", u"公寓", u"套房"]
 
 def IsAHouse(Building):
 	for Type in HOUSE_TYPE:
 		if Type in Building:
-			return True
+			return Type
 	return False
 
 def ConvertXMLToDataframe(XmlData):
@@ -35,9 +35,21 @@ def ConvertXMLToDataframe(XmlData):
 		for TransactionColumn in Record:
 			if TransactionColumn.tag not in FEATURE_COLUMN:
 				continue
+			if u"土地區段位置或建物區門牌" == TransactionColumn.tag:
+				TransactionColumn.text = TransactionColumn.text.split(u"~")[0]+u"號"
+			elif u"建築完成年月" == TransactionColumn.tag:
+				if TransactionColumn.text:
+					#print("======================")
+					TransactionColumn.text = int(TransactionColumn.text[:3])
+					#print(TransactionColumn.text)
+					
 			TransactionDetail[TransactionColumn.tag] = TransactionColumn.text
-		if not IsAHouse(TransactionDetail[u"建物型態"]):
+		HouseType = IsAHouse(TransactionDetail[u"建物型態"])
+		if not HouseType:
 			continue
+		else:
+			TransactionDetail[u"建物型態"] = HouseType
+
 		AllRecords.append(TransactionDetail)
 	return pd.DataFrame(AllRecords)
 		
@@ -45,7 +57,7 @@ def ConvertXMLToDataframe(XmlData):
 def ReadTrainingData():
 	PathPrefix = "./dataset/"
 	Filepath = PathPrefix+"Training/"
-	
+
 	return pd.concat(ConvertXMLToDataframe(open(Filepath+"/"+FileName).read()) for FileName in os.listdir(Filepath))
 
 def ReadTestingData():
@@ -54,20 +66,75 @@ def ReadTestingData():
 
 	return pd.concat(ConvertXMLToDataframe(open(Filepath+"/"+FileName).read()) for FileName in os.listdir(Filepath))
 
+def GetNearestDistanceToMRT(Address):
+	#Google Map Api TODO
+	Distance = 0.0
+	return Distance
+
 def PreprocessDistanceFromMRT(Data):
 	#TODO
-	return None
+	##Using Google API perhaps
+	Data["DistanceToMRT"] = Data[u"土地區段位置或建物區門牌"].apply(GetNearestDistanceToMRT)
+	return Data
 
-def Preprocess(Data, NullFareValue):
+def PreprocessBuildingAge(Data):
+	Avg = Data[u"建築完成年月"].mean()
+	Std = Data[u"建築完成年月"].std()
+	NullAgeCount = Data[u"建築完成年月"].isnull().sum()
+
+	NullAgeFillList = np.random.randint(Avg-Std, Avg+Std, size=NullAgeCount)
+	Data[u"建築完成年月"][np.isnan(Data[u"建築完成年月"])] = NullAgeFillList
+	Data[u"建築完成年月"].astype(int)
+	return Data
+
+def PreprocessBuildingType(Data):
+	print(Data[u"建物型態"])
+	Data[u"建物型態"] = Data[u"建物型態"].map({u"住宅大樓":1, u"華廈":2, u"公寓":3, u"套房":4})
+
+	return Data
+
+def PreprocessInterior(Data):
+	Data[u"建物現況格局-房"].astype(int)
+	Data[u"建物現況格局-廳"].astype(int)
+	Data[u"建物現況格局-衛"].astype(int)
+	Data[u"建物現況格局-隔間"] = Data[u"建物現況格局-隔間"].map({u"有":1, u"無":0})
+	return Data
+
+def PreprocessTotalPrice(Data):
+	Data[u"總額元"] = Data[u"總額元"].map(lambda Price:int(int(Price)/1000))
+	Data[u"總額元"].astype(int)
+	return Data
+
+def PreprocessHasManagementUnit(Data):
+	Data[u"有無管理組織"] = Data[u"有無管理組織"].map({u"有":1, u"無":0})
+	print(Data[u"有無管理組織"])
+	return Data
+
+def PreprocessMaterial(Data):
+	Data[u"主要建材"] = Data[u"主要建材"].map({u"鋼骨鋼筋混凝土造":1, u"鋼筋混凝土造":2, u"加強磚造":3, u"磚造":4, u"見其他登記事項":5})
+	return Data
+
+def Preprocess(Data):
+	Data = PreprocessBuildingType(Data)
+	Data = PreprocessInterior(Data)
+	Data = PreprocessBuildingAge(Data)
+	Data = PreprocessTotalPrice(Data)
+	Data = PreprocessHasManagementUnit(Data)
+	Data = PreprocessDistanceFromMRT(Data)
+	Data = PreprocessMaterial(Data)
 	
-	return Data.values
+	DropList = [u"土地區段位置或建物區門牌"]
+	Data = Data.drop(DropList, axis=1) 
+	return Data#.values
 
 if __name__ == '__main__':
 	TrainingData = ReadTrainingData()
 	TestingData = ReadTestingData()
+	TrainingData = Preprocess(TrainingData)
+	TestingData = Preprocess(TestingData)
 	
-	print(TrainingData.info)
-	
+	print (TrainingData.values)
+
 	"""
 	Spliter = StratifiedShuffleSplit(n_splits=10, test_size=0.1, random_state=0)
 	Features = TrainingData[0::, 1::]
