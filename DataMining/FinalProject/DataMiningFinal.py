@@ -10,10 +10,10 @@ from Classifiers import *
 
 
 Classifiers = [
-	SVC(probability=False),
-    DecisionTreeClassifier(),
-	RandomForestClassifier(),
-	AdaBoostClassifier(),
+	SVC(probability=True),
+    DecisionTreeClassifier(max_depth=6),
+	RandomForestClassifier(n_estimators=300),
+	#AdaBoostClassifier(),
 	GradientBoostingClassifier(),
 	#xgb.XGBClassifier(max_depth=3, n_estimators=300, learning_rate=0.05)
 ]
@@ -49,7 +49,7 @@ def ConvertXMLToDataframe(XmlData):
 			TransactionDetail[TransactionColumn.tag] = TransactionColumn.text
 		HouseType = IsAHouse(TransactionDetail[u"建物型態"])
 		AreaKeyAppeared = 0
-		if not HouseType:
+		if not HouseType or '0' == TransactionDetail[u"建物現況格局-房"]:
 			continue
 		else:
 			TransactionDetail[u"建物型態"] = HouseType
@@ -70,6 +70,14 @@ def ReadTestingData():
 
 	return pd.concat(ConvertXMLToDataframe(open(Filepath+"/"+FileName).read()) for FileName in os.listdir(Filepath))
 
+def PriceRangeAcc(GroundTruth, Prediction, Tolerance=1.0):
+	TransactionCount = len(GroundTruth)
+	Correct = 0
+	for Index in range(TransactionCount):
+		#print("Trueth : " + str(GroundTruth[Index]) + " , Prediction : " + str(Prediction[Index]))
+		if abs(GroundTruth[Index] - Prediction[Index]) <= Tolerance:
+			Correct+=1
+	return float(Correct)/float(TransactionCount)
 def GetNearestDistanceToMRT(Address):
 	#Google Map Api TODO
 	Distance = 0.0
@@ -184,21 +192,27 @@ if __name__ == '__main__':
 	TrainingData = Preprocess(TrainingData)
 	TestingData = Preprocess(TestingData)
 	
+	print(TestingData.info)
+
+	TestingFeatures = TestingData.values[0::, ::-1]
+	TestingLabels = np.asarray(TestingData[u"總額元"], dtype=int)
+	#TestingLabels = np.asarray(TestingData[u"總額元"], dtype="|S6")
 
 	Spliter = StratifiedShuffleSplit(n_splits=10, test_size=0.1, random_state=0)
-	Features = TrainingData.values[0::, ::-1]
-	Labels = np.asarray(TrainingData[u"總額元"], dtype="|S6")
+	TrainingFeatures = TrainingData.values[0::, ::-1]
+	TrainingLabels = np.asarray(TrainingData[u"總額元"], dtype=int)
+	#TrainingLabels = np.asarray(TrainingData[u"總額元"], dtype="|S6")
 
 	ResultDict = {}
-	for TrainIndex, TestIndex in Spliter.split(Features, Labels):
-		X_train, X_test = Features[TrainIndex], Features[TestIndex]
-		y_train, y_test = Labels[TrainIndex], Labels[TestIndex]
+	for TrainIndex, TestIndex in Spliter.split(TrainingFeatures, TrainingLabels):
+		X_train, X_test = TrainingFeatures[TrainIndex], TrainingFeatures[TestIndex]
+		y_train, y_test = TrainingLabels[TrainIndex], TrainingLabels[TestIndex]
 
 		for clf in Classifiers:
 			name = clf.__class__.__name__
 			clf.fit(X_train, y_train)
 			train_predictions = clf.predict(X_test)
-			acc = accuracy_score(y_test, train_predictions)
+			acc = PriceRangeAcc(y_test, train_predictions, 1.0)
 			if name in ResultDict:
 				ResultDict[name] += acc
 			else:
@@ -209,34 +223,32 @@ if __name__ == '__main__':
 		log_entry = pd.DataFrame([[clf, ResultDict[clf]]], columns=["Classifier", "Accuracy"])
 		print("===================================")
 		print(log_entry)
-	"""
+	
+
 	GBClassifier = GradientBoostingClassifier()
-	GBClassifier.fit(TrainingData[0::, 1::], TrainingData[0::, 0])
+	GBClassifier.fit(TrainingFeatures, TrainingLabels)
 	GBPrediction = GBClassifier.predict(TestingData)
+	GBAcc = PriceRangeAcc(TestingLabels, GBPrediction, 3)
+	print("===================================")
+	print("GB acc = " + str(GBAcc))
 
 	SVClassifier = SVC(probability=True)
-	SVClassifier.fit(TrainingData[0::, 1::], TrainingData[0::, 0])
+	SVClassifier.fit(TrainingFeatures, TrainingLabels)
 	SVCPrediction = SVClassifier.predict(TestingData)
+	SVCAcc = PriceRangeAcc(TestingLabels, SVCPrediction, 3)
+	print("===================================")
+	print("SVC acc = " + str(SVCAcc))
 
 	RFClassifier = RandomForestClassifier()
-	RFClassifier.fit(TrainingData[0::, 1::], TrainingData[0::, 0])
+	RFClassifier.fit(TrainingFeatures, TrainingLabels)
 	RFPrediction = RFClassifier.predict(TestingData)
+	RFAcc = PriceRangeAcc(TestingLabels, RFPrediction, 3)
+	print("===================================")
+	print("RF acc = " + str(RFAcc))
 
-	XGBoostClassifier = xgb.XGBClassifier(max_depth=3, n_estimators=300, learning_rate=0.05)
-	XGBoostClassifier.fit(TrainingData[0::, 1::], TrainingData[0::, 0])
-	XGBPrediction = XGBoostClassifier.predict(TestingData)
-	
 	DTClassifier = DecisionTreeClassifier()
-	DTClassifier.fit(TrainingData[0::, 1::], TrainingData[0::, 0])
+	DTClassifier.fit(TrainingFeatures, TrainingLabels)
 	DTPrediction = DTClassifier.predict(TestingData)
-
-	AdaClassifier = AdaBoostClassifier()
-	AdaClassifier.fit(TrainingData[0::, 1::], TrainingData[0::, 0])
-	AdaPrediction = AdaClassifier.predict(TestingData)
-	
-	Prediction=[1 if x>=2 else 0 for x in GBPrediction+SVCPrediction+RFPrediction ]
-
-	OutputData = {"ItemId":TestingPassengerIds, "Price":Prediction}
-	OutputDF = pd.DataFrame(data=OutputData)
-	OutputDF.to_csv("Result.csv", index=False)
-	"""
+	DTAcc = PriceRangeAcc(TestingLabels, DTPrediction, 1)
+	print("===================================")
+	print("DT acc = " + str(DTAcc))
