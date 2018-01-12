@@ -10,8 +10,6 @@ import csv
 
 import numpy as np
 from scipy.fftpack import dct
-from sklearn.cluster import KMeans
-import sift
 
 from Tkinter import *
 import tkFileDialog 
