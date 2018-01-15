@@ -5,20 +5,21 @@ import seaborn as sb
 import re
 import os
 import xml.etree.ElementTree as ET
+from imblearn.over_sampling import SMOTE
 
 from Classifiers import *
 
 
 Classifiers = [
-	SVC(probability=True),
-    DecisionTreeClassifier(max_depth=6),
-	RandomForestClassifier(n_estimators=300),
+	SVC(probability=False),
+    #DecisionTreeClassifier(max_depth=6),
+	#RandomForestClassifier(n_estimators=300),
 	#AdaBoostClassifier(),
-	GradientBoostingClassifier(),
+	#GradientBoostingClassifier(),
 	#xgb.XGBClassifier(max_depth=3, n_estimators=300, learning_rate=0.05)
 ]
 
-FEATURE_COLUMN = [u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
+FEATURE_COLUMN = [u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"單價每平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
 HOUSE_TYPE = [u"住宅大樓", u"華廈", u"公寓", u"套房"]
 
 def IsAHouse(Building):
@@ -32,7 +33,6 @@ def ConvertXMLToDataframe(XmlData):
 	AllRecords = []
 	for Record in Root:
 		TransactionDetail = {}
-		AreaKeyAppeared = 0
 		for TransactionColumn in Record:
 			if TransactionColumn.tag not in FEATURE_COLUMN:
 				continue
@@ -41,16 +41,16 @@ def ConvertXMLToDataframe(XmlData):
 			elif u"建築完成年月" == TransactionColumn.tag:
 				if TransactionColumn.text:
 					TransactionColumn.text = int(TransactionColumn.text[:3])
-			elif u"租賃總面積平方公尺" == TransactionColumn.tag:
-				if AreaKeyAppeared != 1:
-					AreaKeyAppeared += 1
-					continue
+			elif u"總額元" == TransactionColumn.text  or u"單價每平方公尺" == TransactionColumn.text:
+				TransactionColumn.text = int(TransactionColumn.text)
 
 			TransactionDetail[TransactionColumn.tag] = TransactionColumn.text
+
 		HouseType = IsAHouse(TransactionDetail[u"建物型態"])
-		AreaKeyAppeared = 0
 		if not HouseType or '0' == TransactionDetail[u"建物現況格局-房"]:
 			continue
+		elif None == TransactionDetail[u"單價每平方公尺"] or TransactionDetail[u"單價每平方公尺"] == '0.0':
+			print(TransactionDetail[u"土地區段位置或建物區門牌"])
 		else:
 			TransactionDetail[u"建物型態"] = HouseType
 
@@ -61,23 +61,30 @@ def ConvertXMLToDataframe(XmlData):
 def ReadTrainingData():
 	PathPrefix = "./dataset/"
 	Filepath = PathPrefix+"Training/"
-
-	return pd.concat(ConvertXMLToDataframe(open(Filepath+"/"+FileName).read()) for FileName in os.listdir(Filepath))
+	RetDF = pd.concat(ConvertXMLToDataframe(open(Filepath+"/"+FileName).read()) for FileName in os.listdir(Filepath))
+	
+	return RetDF
 
 def ReadTestingData():
 	PathPrefix = "./dataset/"
 	Filepath = PathPrefix+"Testing/"
+	RetDF = pd.concat(ConvertXMLToDataframe(open(Filepath+"/"+FileName).read()) for FileName in os.listdir(Filepath))
 
-	return pd.concat(ConvertXMLToDataframe(open(Filepath+"/"+FileName).read()) for FileName in os.listdir(Filepath))
+	return RetDF
 
 def PriceRangeAcc(GroundTruth, Prediction, Tolerance=1.0):
 	TransactionCount = len(GroundTruth)
 	Correct = 0
 	for Index in range(TransactionCount):
-		#print("Trueth : " + str(GroundTruth[Index]) + " , Prediction : " + str(Prediction[Index]))
 		if abs(GroundTruth[Index] - Prediction[Index]) <= Tolerance:
 			Correct+=1
+		"""
+		else:
+			print("Expected : " + str(GroundTruth[Index]) + " Predicted : " + str(Prediction[Index]))
+		"""
+			
 	return float(Correct)/float(TransactionCount)
+
 def GetNearestDistanceToMRT(Address):
 	#Google Map Api TODO
 	Distance = 0.0
@@ -169,39 +176,54 @@ def PreprocessMaterial(Data):
 	return Data
 
 def PreprocessArea(Data):
-	Data[u"租賃總面積平方公尺"] = Data[u"租賃總面積平方公尺"].astype(int)
+	Data["Area"] = Data[u"總額元"].astype(float)/Data[u"單價每平方公尺"].astype(float)
+	Data["Area"] = Data["Area"].astype(float)
+	print(Data["Area"])
 	return Data
 
 def Preprocess(Data):
 	Data = PreprocessBuildingType(Data)
 	Data = PreprocessInterior(Data)
 	Data = PreprocessBuildingAge(Data)
-	Data = PreprocessTotalPrice(Data)
 	Data = PreprocessHasManagementUnit(Data)
 	Data = PreprocessMaterial(Data)
 	#Data = PreprocessArea(Data)
+	Data = PreprocessTotalPrice(Data)
 	#Data = PreprocessDistanceFromMRT(Data)
 	
-	DropList = [u"土地區段位置或建物區門牌"]
+	DropList = [u"土地區段位置或建物區門牌"]#, u"單價每平方公尺"]
 	Data = Data.drop(DropList, axis=1) 
 	return Data
 
 if __name__ == '__main__':
 	TrainingData = ReadTrainingData()
 	TestingData = ReadTestingData()
+
 	TrainingData = Preprocess(TrainingData)
 	TestingData = Preprocess(TestingData)
 	
-	print(TestingData.info)
+	for key in TrainingData:
+		print("==============" + key + "=================")
+		#print(TrainingData[key].value_counts())
+		print(TrainingData[key].isnull().values.any())
+		print("===============================")
+	
+	for key in TestingData:
+		print("==============" + key + "=================")
+		#print(TrainingData[key].value_counts())
+		print(TestingData[key].isnull().values.any())
 
 	TestingFeatures = TestingData.values[0::, ::-1]
 	TestingLabels = np.asarray(TestingData[u"總額元"], dtype=int)
-	#TestingLabels = np.asarray(TestingData[u"總額元"], dtype="|S6")
-
+	print(TestingFeatures)
 	Spliter = StratifiedShuffleSplit(n_splits=10, test_size=0.1, random_state=0)
 	TrainingFeatures = TrainingData.values[0::, ::-1]
 	TrainingLabels = np.asarray(TrainingData[u"總額元"], dtype=int)
-	#TrainingLabels = np.asarray(TrainingData[u"總額元"], dtype="|S6")
+	print(TrainingFeatures)
+	
+	Smote = SMOTE()
+	TrainingFeatures, TrainingLabels = Smote.fit_sample(TrainingFeatures, TrainingLabels)
+	
 
 	ResultDict = {}
 	for TrainIndex, TestIndex in Spliter.split(TrainingFeatures, TrainingLabels):
@@ -212,7 +234,7 @@ if __name__ == '__main__':
 			name = clf.__class__.__name__
 			clf.fit(X_train, y_train)
 			train_predictions = clf.predict(X_test)
-			acc = PriceRangeAcc(y_test, train_predictions, 1.0)
+			acc = PriceRangeAcc(y_test, train_predictions, 2.0)
 			if name in ResultDict:
 				ResultDict[name] += acc
 			else:
@@ -225,20 +247,13 @@ if __name__ == '__main__':
 		print(log_entry)
 	
 
-	GBClassifier = GradientBoostingClassifier()
-	GBClassifier.fit(TrainingFeatures, TrainingLabels)
-	GBPrediction = GBClassifier.predict(TestingData)
-	GBAcc = PriceRangeAcc(TestingLabels, GBPrediction, 3)
-	print("===================================")
-	print("GB acc = " + str(GBAcc))
-
-	SVClassifier = SVC(probability=True)
+	SVClassifier = SVC(probability=False)
 	SVClassifier.fit(TrainingFeatures, TrainingLabels)
-	SVCPrediction = SVClassifier.predict(TestingData)
-	SVCAcc = PriceRangeAcc(TestingLabels, SVCPrediction, 3)
+	SVCPrediction = SVClassifier.predict(TestingFeatures)
+	SVCAcc = PriceRangeAcc(TestingLabels, SVCPrediction, 2.0)
 	print("===================================")
 	print("SVC acc = " + str(SVCAcc))
-
+"""
 	RFClassifier = RandomForestClassifier()
 	RFClassifier.fit(TrainingFeatures, TrainingLabels)
 	RFPrediction = RFClassifier.predict(TestingData)
@@ -252,3 +267,11 @@ if __name__ == '__main__':
 	DTAcc = PriceRangeAcc(TestingLabels, DTPrediction, 1)
 	print("===================================")
 	print("DT acc = " + str(DTAcc))
+
+	GBClassifier = GradientBoostingClassifier()
+	GBClassifier.fit(TrainingFeatures, TrainingLabels)
+	GBPrediction = GBClassifier.predict(TestingData)
+	GBAcc = PriceRangeAcc(TestingLabels, GBPrediction, 3)
+	print("===================================")
+	print("GB acc = " + str(GBAcc))
+"""
