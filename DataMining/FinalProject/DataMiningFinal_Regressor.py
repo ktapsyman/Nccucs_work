@@ -4,20 +4,17 @@ import matplotlib.pyplot as plt
 import seaborn as sb
 import re
 import os
+import math
 import xml.etree.ElementTree as ET
 from imblearn.over_sampling import SMOTE
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn import preprocessing
 
+
 from Classifiers import *
 
 
-Classifiers = [
-	SVC(probability=False),
-]
-
 #FEATURE_COLUMN = [u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
-#FEATURE_COLUMN = [u"鄉鎮市區", u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"單價每平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
 FEATURE_COLUMN = [u"鄉鎮市區", u"土地區段位置或建物區門牌", u"建築完成年月", u"單價每平方公尺", u"總額元"]
 #FEATURE_COLUMN = [u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"單價每平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
 #FEATURE_COLUMN = [u"建築完成年月", u"總額元"]
@@ -58,7 +55,6 @@ def ConvertXMLToDataframe(XmlData):
 		else:
 			TransactionDetail[u"建物型態"] = HouseType
 		"""
-
 		AllRecords.append(TransactionDetail)
 	return pd.DataFrame(AllRecords)
 		
@@ -109,11 +105,10 @@ def PreprocessBuildingAge(Data):
 	NullAgeFillList = np.random.randint(Avg-Std, Avg+Std, size=NullAgeCount)
 	Data[u"建築完成年月"][np.isnan(Data[u"建築完成年月"])] = NullAgeFillList
 	
-	MinAge = Data[u"建築完成年月"].min()
-	MaxAge = Data[u"建築完成年月"].max()
-	
-	Data[u"建築完成年月"] = Data[u"建築完成年月"] / (MaxAge-MinAge)
-	Data[u"建築完成年月"] = Data[u"建築完成年月"].astype(float)
+	Latest = Data[u"建築完成年月"].max()
+	Oldest = Data[u"建築完成年月"].min()
+	Data[u"建築完成年月"] = Data[u"建築完成年月"]/(Latest-Oldest)
+	Data[u"建築完成年月"] = Data[u"建築完成年月"].astype(int)
 	return Data
 
 def PreprocessBuildingType(Data):
@@ -132,47 +127,9 @@ def PreprocessInterior(Data):
 	return Data
 
 def PreprocessTotalPrice(Data):
-	Data[u"總額元"] = Data[u"總額元"].map(lambda Price:int(int(Price)/1000))
+	Data[u"總額元"] = Data[u"總額元"].map(lambda Price:math.log10(Price))
 
-	Data.loc[(Data[u"總額元"] <= 5), u"總額元"] = 0
-	Data.loc[(Data[u"總額元"] > 5) & (Data[u"總額元"] <= 6), u"總額元"] = 1
-	Data.loc[(Data[u"總額元"] > 6) & (Data[u"總額元"] <= 7), u"總額元"] = 2
-	Data.loc[(Data[u"總額元"] > 7) & (Data[u"總額元"] <= 8), u"總額元"] = 3
-	Data.loc[(Data[u"總額元"] > 8) & (Data[u"總額元"] <= 9), u"總額元"] = 4
-	Data.loc[(Data[u"總額元"] > 9) & (Data[u"總額元"] <= 10), u"總額元"] = 5
-	Data.loc[(Data[u"總額元"] > 10) & (Data[u"總額元"] <= 11), u"總額元"] = 6
-	Data.loc[(Data[u"總額元"] > 11) & (Data[u"總額元"] <= 12), u"總額元"] = 7
-	Data.loc[(Data[u"總額元"] > 12) & (Data[u"總額元"] <= 13), u"總額元"] = 8
-	Data.loc[(Data[u"總額元"] > 13) & (Data[u"總額元"] <= 14), u"總額元"] = 9
-	Data.loc[(Data[u"總額元"] > 14) & (Data[u"總額元"] <= 15), u"總額元"] = 10
-	Data.loc[(Data[u"總額元"] > 15) & (Data[u"總額元"] <= 16), u"總額元"] = 11
-	Data.loc[(Data[u"總額元"] > 16) & (Data[u"總額元"] <= 17), u"總額元"] = 12
-	Data.loc[(Data[u"總額元"] > 17) & (Data[u"總額元"] <= 18), u"總額元"] = 13
-	Data.loc[(Data[u"總額元"] > 18) & (Data[u"總額元"] <= 19), u"總額元"] = 14
-	Data.loc[(Data[u"總額元"] > 19) & (Data[u"總額元"] <= 20), u"總額元"] = 15
-	Data.loc[(Data[u"總額元"] > 20) & (Data[u"總額元"] <= 21), u"總額元"] = 16
-	Data.loc[(Data[u"總額元"] > 21) & (Data[u"總額元"] <= 22), u"總額元"] = 17
-	Data.loc[(Data[u"總額元"] > 22) & (Data[u"總額元"] <= 23), u"總額元"] = 18
-	Data.loc[(Data[u"總額元"] > 23) & (Data[u"總額元"] <= 24), u"總額元"] = 19
-	Data.loc[(Data[u"總額元"] > 24) & (Data[u"總額元"] <= 25), u"總額元"] = 20
-	Data.loc[(Data[u"總額元"] > 25) & (Data[u"總額元"] <= 26), u"總額元"] = 21
-	Data.loc[(Data[u"總額元"] > 26) & (Data[u"總額元"] <= 27), u"總額元"] = 22
-	Data.loc[(Data[u"總額元"] > 27) & (Data[u"總額元"] <= 28), u"總額元"] = 23
-	Data.loc[(Data[u"總額元"] > 28) & (Data[u"總額元"] <= 29), u"總額元"] = 24
-	Data.loc[(Data[u"總額元"] > 29) & (Data[u"總額元"] <= 30), u"總額元"] = 25
-	Data.loc[(Data[u"總額元"] > 30) & (Data[u"總額元"] <= 31), u"總額元"] = 26
-	Data.loc[(Data[u"總額元"] > 31) & (Data[u"總額元"] <= 32), u"總額元"] = 27
-	Data.loc[(Data[u"總額元"] > 32) & (Data[u"總額元"] <= 33), u"總額元"] = 28
-	Data.loc[(Data[u"總額元"] > 33) & (Data[u"總額元"] <= 34), u"總額元"] = 29
-	Data.loc[(Data[u"總額元"] > 34) & (Data[u"總額元"] <= 35), u"總額元"] = 30
-	Data.loc[(Data[u"總額元"] > 35) & (Data[u"總額元"] <= 36), u"總額元"] = 31
-	Data.loc[(Data[u"總額元"] > 36) & (Data[u"總額元"] <= 37), u"總額元"] = 32
-	Data.loc[(Data[u"總額元"] > 37) & (Data[u"總額元"] <= 38), u"總額元"] = 33
-	Data.loc[(Data[u"總額元"] > 38) & (Data[u"總額元"] <= 39), u"總額元"] = 34
-	Data.loc[(Data[u"總額元"] > 39) & (Data[u"總額元"] <= 40), u"總額元"] = 35
-	Data.loc[(Data[u"總額元"] > 40), u"總額元"] = 36
-
-	Data[u"總額元"] = Data[u"總額元"].astype(int)
+	Data[u"總額元"] = Data[u"總額元"].astype(float)
 	return Data
 
 def PreprocessHasManagementUnit(Data):
@@ -187,17 +144,17 @@ def PreprocessMaterial(Data):
 
 def PreprocessArea(Data):
 	Data["Area"] = Data[u"總額元"].astype(float)/Data[u"單價每平方公尺"].astype(float)
-	
-	MinArea = Data["Area"].min()
-	MaxArea = Data["Area"].max()
-	
-	Data["Area"] = Data["Area"]/(MaxArea - MinArea)
+
+	Smallest = Data["Area"].min()
+	Largerest = Data["Area"].max()
+	Data["Area"] = Data["Area"]/(Largerest-Smallest)	
 	Data["Area"] = Data["Area"].astype(float)
+	#print(Data["Area"])
 	return Data
 
 def Preprocess(Data):
 	Data = PreprocessBuildingAge(Data)
-	Data = PreprocessTotalPrice(Data)
+	#Data = PreprocessTotalPrice(Data)
 
 	DropList = [u"土地區段位置或建物區門牌"]#, u"單價每平方公尺"]
 	Data = Data.drop(DropList, axis=1) 
@@ -258,14 +215,13 @@ if __name__ == '__main__':
 	TrainingFeatures = TrainingFeatures.values
 	TestingFeatures = TestingFeatures.values
 	
-	ShowFeatureImportance(TrainingFeatures, TrainingLabels)
-
+	#ShowFeatureImportance(TrainingFeatures, TrainingLabels)
+	"""
 	Smote = SMOTE()
 	TrainingFeatures, TrainingLabels = Smote.fit_sample(TrainingFeatures, TrainingLabels)
-
-	ShowFeatureImportance(TrainingFeatures, TrainingLabels)
-	
-
+	"""
+	#ShowFeatureImportance(TrainingFeatures, TrainingLabels)
+	"""
 	Spliter = StratifiedShuffleSplit(n_splits=10, test_size=0.1, random_state=0)
 
 	ResultDict = {}
@@ -277,25 +233,27 @@ if __name__ == '__main__':
 			name = clf.__class__.__name__
 			clf.fit(X_train, y_train)
 			train_predictions = clf.predict(X_test)
-			acc = PriceRangeAcc(y_test, train_predictions, 1.0)
+			acc = mean_squared_error(np.log(y_test), np.log(train_predictions))
 			if name in ResultDict:
 				ResultDict[name] += acc
 			else:
 				ResultDict[name] = acc
-
-	for clf in ResultDict:
-		ResultDict[clf] = ResultDict[clf] / 10.0
-		log_entry = pd.DataFrame([[clf, ResultDict[clf]]], columns=["Classifier", "Accuracy"])
-		print("===================================")
-		print(log_entry)
+	"""
+	X_train, X_test, y_train, y_test = train_test_split(TrainingFeatures, TrainingLabels, test_size=0.2, random_state=0)
+	SVRegressor = SVR()
+	SVRegressor.fit(X_train, y_train)
+	Result = SVRegressor.predict(X_test)
+	
+	MSE = mean_squared_error(np.log(y_test), np.log(Result))
+	print("CV RMSE : " + str(math.sqrt(MSE)))
 	
 
-	SVClassifier = SVC(probability=False)
-	SVClassifier.fit(TrainingFeatures, TrainingLabels)
-	SVCPrediction = SVClassifier.predict(TestingFeatures)
-	SVCAcc = PriceRangeAcc(TestingLabels, SVCPrediction, 1.0)
+	SVRegressor = SVR()
+	SVRegressor.fit(TrainingFeatures, TrainingLabels)
+	SVRPrediction = SVRegressor.predict(TestingFeatures)
+	SVRAcc = mean_squared_error(np.log(TestingLabels), np.log(SVRPrediction))
 	print("===================================")
-	print("SVC acc = " + str(SVCAcc))
+	print("TEST RMSE = " + str(math.sqrt(SVRAcc)))
 """
 	RFClassifier = RandomForestClassifier()
 	RFClassifier.fit(TrainingFeatures, TrainingLabels)
