@@ -260,7 +260,7 @@ if __name__ == '__main__':
 	Enc.fit(Sectors)
 	TrainingFeatures[u"鄉鎮市區"] = Enc.transform(TrainingSectors)
 	TestingFeatures[u"鄉鎮市區"] = Enc.transform(TestingSectors)
-	
+	"""
 	#OneHotEncoder
 	Enc = preprocessing.OneHotEncoder(sparse=False)
 	TrainingSectors = TrainingFeatures.loc[:, u"鄉鎮市區"].values
@@ -278,17 +278,19 @@ if __name__ == '__main__':
 	TrainingFeatures = TrainingFeatures.drop([u"鄉鎮市區"], axis=1)
 	TestingFeatures = TestingFeatures.drop([u"鄉鎮市區"], axis=1)
 	print(TrainingFeatures.keys())
-
+	
 	TrainingFeatures = np.concatenate((TrainingFeatures.values, TrainingSectors), axis=1)
 	TestingFeatures = np.concatenate((TestingFeatures.values, TestingSectors), axis=1)
 	print(TrainingFeatures[0])
-	#ShowFeatureImportance(TrainingFeatures, TrainingLabels)
+	"""
+	TrainingFeatures = TrainingFeatures.values
+	TestingFeatures = TestingFeatures.values
+	ShowFeatureImportance(TrainingFeatures, TrainingLabels)
 
 	Smote = SMOTE()
 	TrainingFeatures, TrainingLabels = Smote.fit_sample(TrainingFeatures, TrainingLabels)
-	print(len(TrainingFeatures))
 
-	#ShowFeatureImportance(TrainingFeatures, TrainingLabels)
+	ShowFeatureImportance(TrainingFeatures, TrainingLabels)
 	
 
 	Spliter = StratifiedShuffleSplit(n_splits=10, test_size=0.1, random_state=0)
