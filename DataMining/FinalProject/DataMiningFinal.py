@@ -246,6 +246,7 @@ if __name__ == '__main__':
 
 	TrainingFeatures = TrainingData.loc[:, TrainingData.columns != u"總額元"]
 	TrainingLabels = np.asarray(TrainingData[u"總額元"], dtype=int)
+	print("LEN of TRAINING : " + str(len(TrainingLabels)))
 
 	TestingFeatures = TestingData.loc[:, TestingData.columns != u"總額元"]
 	TestingLabels = np.asarray(TestingData[u"總額元"], dtype=int)
