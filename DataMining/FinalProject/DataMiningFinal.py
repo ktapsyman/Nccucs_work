@@ -17,8 +17,8 @@ Classifiers = [
 ]
 
 #FEATURE_COLUMN = [u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
-#FEATURE_COLUMN = [u"鄉鎮市區", u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"單價每平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
-FEATURE_COLUMN = [u"鄉鎮市區", u"土地區段位置或建物區門牌", u"建築完成年月", u"單價每平方公尺", u"總額元"]
+FEATURE_COLUMN = [u"鄉鎮市區", u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"單價每平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
+#FEATURE_COLUMN = [u"鄉鎮市區", u"土地區段位置或建物區門牌", u"建築完成年月", u"單價每平方公尺", u"總額元"]
 #FEATURE_COLUMN = [u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"單價每平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
 #FEATURE_COLUMN = [u"建築完成年月", u"總額元"]
 HOUSE_TYPE = [u"住宅大樓", u"華廈", u"公寓", u"套房"]
@@ -50,14 +50,13 @@ def ConvertXMLToDataframe(XmlData):
 		if None == TransactionDetail[u"單價每平方公尺"] or TransactionDetail[u"單價每平方公尺"] == '0':
 			#print(TransactionDetail[u"土地區段位置或建物區門牌"])
 			continue
-		"""
+		
 		HouseType = IsAHouse(TransactionDetail[u"建物型態"])
 		
 		if not HouseType:# or '0' == TransactionDetail[u"建物現況格局-房"]:
 			continue
 		else:
 			TransactionDetail[u"建物型態"] = HouseType
-		"""
 
 		AllRecords.append(TransactionDetail)
 	return pd.DataFrame(AllRecords)
@@ -113,6 +112,7 @@ def PreprocessBuildingAge(Data):
 	MaxAge = Data[u"建築完成年月"].max()
 	
 	Data[u"建築完成年月"] = Data[u"建築完成年月"] / (MaxAge-MinAge)
+	print(Data[u"建築完成年月"].max())
 	Data[u"建築完成年月"] = Data[u"建築完成年月"].astype(float)
 	return Data
 
@@ -131,8 +131,12 @@ def PreprocessInterior(Data):
 	Data[u"有無附傢俱"] = Data[u"有無附傢俱"].astype(int)
 	return Data
 
-def PreprocessTotalPrice(Data):
+def PreprocessPrice(Data):
 	Data[u"總額元"] = Data[u"總額元"].map(lambda Price:int(int(Price)/1000))
+
+	print(Data[u"總額元"].min())
+	print(Data[u"總額元"].max())
+	print(Data[u"總額元"].mean())
 
 	Data.loc[(Data[u"總額元"] <= 5), u"總額元"] = 0
 	Data.loc[(Data[u"總額元"] > 5) & (Data[u"總額元"] <= 6), u"總額元"] = 1
@@ -173,6 +177,12 @@ def PreprocessTotalPrice(Data):
 	Data.loc[(Data[u"總額元"] > 40), u"總額元"] = 36
 
 	Data[u"總額元"] = Data[u"總額元"].astype(int)
+	
+	Data[u"單價每平方公尺"] = Data[u"單價每平方公尺"].astype(float)
+	MinUnitPrice = Data[u"單價每平方公尺"].min()
+	MaxUnitPrice = Data[u"單價每平方公尺"].max()
+	Data[u"單價每平方公尺"] = Data[u"單價每平方公尺"]/(MaxUnitPrice-MinUnitPrice)
+
 	return Data
 
 def PreprocessHasManagementUnit(Data):
@@ -192,19 +202,20 @@ def PreprocessArea(Data):
 	MaxArea = Data["Area"].max()
 	
 	Data["Area"] = Data["Area"]/(MaxArea - MinArea)
+	print(Data["Area"].max())
 	Data["Area"] = Data["Area"].astype(float)
 	return Data
 
 def Preprocess(Data):
 	Data = PreprocessBuildingAge(Data)
-	Data = PreprocessTotalPrice(Data)
+	Data = PreprocessPrice(Data)
 
 	DropList = [u"土地區段位置或建物區門牌"]#, u"單價每平方公尺"]
 	Data = Data.drop(DropList, axis=1) 
-	#Data = PreprocessBuildingType(Data)
-	#Data = PreprocessInterior(Data)
-	#Data = PreprocessHasManagementUnit(Data)
-	#Data = PreprocessMaterial(Data)
+	Data = PreprocessBuildingType(Data)
+	Data = PreprocessInterior(Data)
+	Data = PreprocessHasManagementUnit(Data)
+	Data = PreprocessMaterial(Data)
 	Data = PreprocessArea(Data)
 	#Data = PreprocessDistanceFromMRT(Data)
 	
@@ -233,37 +244,50 @@ if __name__ == '__main__':
 	TrainingData = Preprocess(TrainingData)
 	TestingData = Preprocess(TestingData)
 
-	TestingFeatures = TestingData.loc[:, TestingData.columns != u"總額元"]
-	TestingLabels = np.asarray(TestingData[u"總額元"], dtype=int)
-	print(TestingFeatures)
-	print(TestingLabels)
-	
 	TrainingFeatures = TrainingData.loc[:, TrainingData.columns != u"總額元"]
 	TrainingLabels = np.asarray(TrainingData[u"總額元"], dtype=int)
 
-	#Encode sectors
+	TestingFeatures = TestingData.loc[:, TestingData.columns != u"總額元"]
+	TestingLabels = np.asarray(TestingData[u"總額元"], dtype=int)
+
+	#Label encoding
 	Enc = preprocessing.LabelEncoder()
-	print(TestingFeatures.loc[:, u"鄉鎮市區"])
-	print("====================")
-	TestingSectors = TestingFeatures.loc[:, u"鄉鎮市區"].values
 	TrainingSectors = TrainingFeatures.loc[:, u"鄉鎮市區"].values
+	TestingSectors = TestingFeatures.loc[:, u"鄉鎮市區"].values
 	Sectors = np.hstack((TestingSectors, TrainingSectors))
-	print(Sectors)
 
 	Enc.fit(Sectors)
-	TrainingFeatures[u"鄉鎮市區"] = Enc.transform(TrainingFeatures[u"鄉鎮市區"].values)
-	TestingFeatures[u"鄉鎮市區"] = Enc.transform(TestingFeatures[u"鄉鎮市區"].values)
+	TrainingFeatures[u"鄉鎮市區"] = Enc.transform(TrainingSectors)
+	TestingFeatures[u"鄉鎮市區"] = Enc.transform(TestingSectors)
 	
+	#OneHotEncoder
+	Enc = preprocessing.OneHotEncoder(sparse=False)
+	TrainingSectors = TrainingFeatures.loc[:, u"鄉鎮市區"].values
+	TestingSectors = TestingFeatures.loc[:, u"鄉鎮市區"].values
+	Sectors = np.hstack((TestingSectors, TrainingSectors))
+	Sectors = Sectors.reshape(-1, 1)
+	Sectors=Enc.fit_transform(Sectors)
+	
+	print(TrainingSectors)
+	TrainingSectors = Enc.fit_transform(TrainingSectors.reshape(-1, 1))
+	TestingSectors = Enc.fit_transform(TestingSectors.reshape(-1, 1))
+	print(TrainingSectors)
+	
+
+	TrainingFeatures = TrainingFeatures.drop([u"鄉鎮市區"], axis=1)
+	TestingFeatures = TestingFeatures.drop([u"鄉鎮市區"], axis=1)
 	print(TrainingFeatures.keys())
-	TrainingFeatures = TrainingFeatures.values
-	TestingFeatures = TestingFeatures.values
-	
-	ShowFeatureImportance(TrainingFeatures, TrainingLabels)
+
+	TrainingFeatures = np.concatenate((TrainingFeatures.values, TrainingSectors), axis=1)
+	TestingFeatures = np.concatenate((TestingFeatures.values, TestingSectors), axis=1)
+	print(TrainingFeatures[0])
+	#ShowFeatureImportance(TrainingFeatures, TrainingLabels)
 
 	Smote = SMOTE()
 	TrainingFeatures, TrainingLabels = Smote.fit_sample(TrainingFeatures, TrainingLabels)
+	print(len(TrainingFeatures))
 
-	ShowFeatureImportance(TrainingFeatures, TrainingLabels)
+	#ShowFeatureImportance(TrainingFeatures, TrainingLabels)
 	
 
 	Spliter = StratifiedShuffleSplit(n_splits=10, test_size=0.1, random_state=0)
@@ -296,7 +320,7 @@ if __name__ == '__main__':
 	SVCAcc = PriceRangeAcc(TestingLabels, SVCPrediction, 1.0)
 	print("===================================")
 	print("SVC acc = " + str(SVCAcc))
-"""
+	"""
 	RFClassifier = RandomForestClassifier()
 	RFClassifier.fit(TrainingFeatures, TrainingLabels)
 	RFPrediction = RFClassifier.predict(TestingData)
@@ -317,4 +341,4 @@ if __name__ == '__main__':
 	GBAcc = PriceRangeAcc(TestingLabels, GBPrediction, 3)
 	print("===================================")
 	print("GB acc = " + str(GBAcc))
-"""
+	"""
