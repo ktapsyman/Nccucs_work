@@ -7,6 +7,8 @@ import xml.etree.ElementTree as ET
 from imblearn.over_sampling import SMOTE
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn import preprocessing
+import geocoder as gcoder
+import csv
 
 from Classifiers import *
 
@@ -16,12 +18,19 @@ Classifiers = [
 ]
 
 #FEATURE_COLUMN = [u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
+<<<<<<< HEAD
 #FEATURE_COLUMN = [u"鄉鎮市區", u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"單價每平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
 FEATURE_COLUMN = [ u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"單價每平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
 #FEATURE_COLUMN = [u"鄉鎮市區", u"土地區段位置或建物區門牌", u"建築完成年月", u"單價每平方公尺", u"總額元"]
+=======
+#FEATURE_COLUMN = [u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"單價每平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
+FEATURE_COLUMN = [u"鄉鎮市區", u"土地區段位置或建物區門牌", u"建築完成年月", u"單價每平方公尺", u"總額元"]
+>>>>>>> f49ff03657a5c5f0be2c1720a109e956a854a45b
 #FEATURE_COLUMN = [u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"單價每平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
 #FEATURE_COLUMN = [u"建築完成年月", u"總額元"]
 HOUSE_TYPE = [u"住宅大樓", u"華廈", u"公寓", u"套房"]
+MRTLatLng = []
+AddressLatLngDict = {}
 
 def IsAHouse(Building):
 	for Type in HOUSE_TYPE:
@@ -47,17 +56,17 @@ def ConvertXMLToDataframe(XmlData):
 
 			TransactionDetail[TransactionColumn.tag] = TransactionColumn.text
 	
-		if None == TransactionDetail[u"單價每平方公尺"] or TransactionDetail[u"單價每平方公尺"] == '0':
+		if None == TransactionDetail[u"單價每平方公尺"] or TransactionDetail[u"單價每平方公尺"] == 0:
 			#print(TransactionDetail[u"土地區段位置或建物區門牌"])
 			continue
-		
+		"""
 		HouseType = IsAHouse(TransactionDetail[u"建物型態"])
 		
 		if not HouseType:# or '0' == TransactionDetail[u"建物現況格局-房"]:
 			continue
 		else:
 			TransactionDetail[u"建物型態"] = HouseType
-
+		"""
 		AllRecords.append(TransactionDetail)
 	return pd.DataFrame(AllRecords)
 		
@@ -90,14 +99,26 @@ def PriceRangeAcc(GroundTruth, Prediction, Tolerance=1.0):
 	return float(Correct)/float(TransactionCount)
 
 def GetNearestDistanceToMRT(Address):
-	#Google Map Api TODO
 	Distance = 0.0
 	return Distance
 
 def PreprocessDistanceFromMRT(Data):
-	#TODO
 	##Using Google API perhaps
-	Data["DistanceToMRT"] = Data[u"土地區段位置或建物區門牌"].apply(GetNearestDistanceToMRT)
+	if os.path.isfile("./LatLngInfo.csv"):
+		#TODO Read
+		pass
+	else:
+		for Addr in Data[u"土地區段位置或建物區門牌"]:
+			if not Addr in AddressLatLngDict:
+				GeoInfo = gcoder.arcgis(Addr+', Taipei')
+				if not GeoInfo.ok:
+					print("Fuck geocoder doesn't work")
+					print(GeoInfo.json)
+					print(Addr)
+				else:
+					AddressLatLngDict[Addr] = GeoInfo.latlng
+	
+	#Data["DistanceToMRT"] = Data[u"土地區段位置或建物區門牌"].apply(GetNearestDistanceToMRT)
 	return Data
 
 def PreprocessBuildingAge(Data):
@@ -114,7 +135,10 @@ def PreprocessBuildingAge(Data):
 	Data[u"建築完成年月"] = Data[u"建築完成年月"] / (MaxAge-MinAge)
 	print(Data[u"建築完成年月"].max())
 	"""
-	Data[u"建築完成年月"] = Data[u"建築完成年月"].astype(int)
+	
+	#Data[u"建築完成年月"] = Data[u"建築完成年月"] / (MaxAge-MinAge)
+	
+	Data[u"建築完成年月"] = Data[u"建築完成年月"].astype(float)
 	return Data
 
 def PreprocessBuildingType(Data):
@@ -134,10 +158,11 @@ def PreprocessInterior(Data):
 
 def PreprocessPrice(Data):
 	Data[u"總額元"] = Data[u"總額元"].map(lambda Price:int(int(Price)/1000))
-
+	print("Info about total price : ")
 	print(Data[u"總額元"].min())
 	print(Data[u"總額元"].max())
 	print(Data[u"總額元"].mean())
+	print(Data[u"總額元"].std())
 
 	Data.loc[(Data[u"總額元"] <= 5), u"總額元"] = 0
 	Data.loc[(Data[u"總額元"] > 5) & (Data[u"總額元"] <= 6), u"總額元"] = 1
@@ -184,6 +209,7 @@ def PreprocessPrice(Data):
 	MaxUnitPrice = Data[u"單價每平方公尺"].max()
 	Data[u"單價每平方公尺"] = Data[u"單價每平方公尺"]/(MaxUnitPrice-MinUnitPrice)
 	"""
+
 	return Data
 
 def PreprocessHasManagementUnit(Data):
@@ -206,20 +232,21 @@ def PreprocessArea(Data):
 	print(Data["Area"].max())
 	"""
 	Data["Area"] = Data["Area"].astype(float)
+	
 	return Data
 
 def Preprocess(Data):
 	Data = PreprocessBuildingAge(Data)
 	Data = PreprocessPrice(Data)
 
+	#Data = PreprocessBuildingType(Data)
+	#Data = PreprocessInterior(Data)
+	#Data = PreprocessHasManagementUnit(Data)
+	#Data = PreprocessMaterial(Data)
+	Data = PreprocessArea(Data)
+	Data = PreprocessDistanceFromMRT(Data)
 	DropList = [u"土地區段位置或建物區門牌"]#, u"單價每平方公尺"]
 	Data = Data.drop(DropList, axis=1) 
-	Data = PreprocessBuildingType(Data)
-	Data = PreprocessInterior(Data)
-	Data = PreprocessHasManagementUnit(Data)
-	Data = PreprocessMaterial(Data)
-	Data = PreprocessArea(Data)
-	#Data = PreprocessDistanceFromMRT(Data)
 	
 	return Data
 
@@ -245,7 +272,14 @@ if __name__ == '__main__':
 
 	TrainingData = Preprocess(TrainingData)
 	TestingData = Preprocess(TestingData)
-
+	
+	if not os.path.isfile("./LatLngInfo.csv"):
+		with open('./LatLngInfo.csv', 'w') as CsvFile:
+			Writer = csv.writer(CsvFile, delimiter=',')
+			for Address in AddressLatLngDict:
+				Writer.writerow([Address, AddressLatLngDict[Address]])
+	print("How's it going?")
+	exit()
 	TrainingFeatures = TrainingData.loc[:, TrainingData.columns != u"總額元"]
 	TrainingLabels = np.asarray(TrainingData[u"總額元"], dtype=int)
 	print(TrainingLabels)
@@ -285,6 +319,7 @@ if __name__ == '__main__':
 	TestingFeatures = np.concatenate((TestingFeatures.values, TestingSectors), axis=1)
 	print(TrainingFeatures[0])
 	"""
+	print(TrainingFeatures.keys())
 	TrainingFeatures = TrainingFeatures.values
 	TestingFeatures = TestingFeatures.values
 	#ShowFeatureImportance(TrainingFeatures, TrainingLabels)
