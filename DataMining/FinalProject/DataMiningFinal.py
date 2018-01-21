@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sb
 import re
 import os
 import xml.etree.ElementTree as ET
@@ -17,7 +16,8 @@ Classifiers = [
 ]
 
 #FEATURE_COLUMN = [u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
-FEATURE_COLUMN = [u"鄉鎮市區", u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"單價每平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
+#FEATURE_COLUMN = [u"鄉鎮市區", u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"單價每平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
+FEATURE_COLUMN = [ u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"單價每平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
 #FEATURE_COLUMN = [u"鄉鎮市區", u"土地區段位置或建物區門牌", u"建築完成年月", u"單價每平方公尺", u"總額元"]
 #FEATURE_COLUMN = [u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"單價每平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
 #FEATURE_COLUMN = [u"建築完成年月", u"總額元"]
@@ -107,13 +107,14 @@ def PreprocessBuildingAge(Data):
 
 	NullAgeFillList = np.random.randint(Avg-Std, Avg+Std, size=NullAgeCount)
 	Data[u"建築完成年月"][np.isnan(Data[u"建築完成年月"])] = NullAgeFillList
-	
+	"""
 	MinAge = Data[u"建築完成年月"].min()
 	MaxAge = Data[u"建築完成年月"].max()
 	
 	Data[u"建築完成年月"] = Data[u"建築完成年月"] / (MaxAge-MinAge)
 	print(Data[u"建築完成年月"].max())
-	Data[u"建築完成年月"] = Data[u"建築完成年月"].astype(float)
+	"""
+	Data[u"建築完成年月"] = Data[u"建築完成年月"].astype(int)
 	return Data
 
 def PreprocessBuildingType(Data):
@@ -175,14 +176,14 @@ def PreprocessPrice(Data):
 	Data.loc[(Data[u"總額元"] > 38) & (Data[u"總額元"] <= 39), u"總額元"] = 34
 	Data.loc[(Data[u"總額元"] > 39) & (Data[u"總額元"] <= 40), u"總額元"] = 35
 	Data.loc[(Data[u"總額元"] > 40), u"總額元"] = 36
-
-	Data[u"總額元"] = Data[u"總額元"].astype(int)
 	
+	Data[u"總額元"] = Data[u"總額元"].astype(int)
+	"""
 	Data[u"單價每平方公尺"] = Data[u"單價每平方公尺"].astype(float)
 	MinUnitPrice = Data[u"單價每平方公尺"].min()
 	MaxUnitPrice = Data[u"單價每平方公尺"].max()
 	Data[u"單價每平方公尺"] = Data[u"單價每平方公尺"]/(MaxUnitPrice-MinUnitPrice)
-
+	"""
 	return Data
 
 def PreprocessHasManagementUnit(Data):
@@ -197,12 +198,13 @@ def PreprocessMaterial(Data):
 
 def PreprocessArea(Data):
 	Data["Area"] = Data[u"總額元"].astype(float)/Data[u"單價每平方公尺"].astype(float)
-	
+	"""
 	MinArea = Data["Area"].min()
 	MaxArea = Data["Area"].max()
 	
 	Data["Area"] = Data["Area"]/(MaxArea - MinArea)
 	print(Data["Area"].max())
+	"""
 	Data["Area"] = Data["Area"].astype(float)
 	return Data
 
@@ -250,7 +252,7 @@ if __name__ == '__main__':
 
 	TestingFeatures = TestingData.loc[:, TestingData.columns != u"總額元"]
 	TestingLabels = np.asarray(TestingData[u"總額元"], dtype=int)
-
+	"""
 	#Label encoding
 	Enc = preprocessing.LabelEncoder()
 	TrainingSectors = TrainingFeatures.loc[:, u"鄉鎮市區"].values
@@ -260,7 +262,7 @@ if __name__ == '__main__':
 	Enc.fit(Sectors)
 	TrainingFeatures[u"鄉鎮市區"] = Enc.transform(TrainingSectors)
 	TestingFeatures[u"鄉鎮市區"] = Enc.transform(TestingSectors)
-	"""
+	
 	#OneHotEncoder
 	Enc = preprocessing.OneHotEncoder(sparse=False)
 	TrainingSectors = TrainingFeatures.loc[:, u"鄉鎮市區"].values
@@ -273,7 +275,7 @@ if __name__ == '__main__':
 	TrainingSectors = Enc.fit_transform(TrainingSectors.reshape(-1, 1))
 	TestingSectors = Enc.fit_transform(TestingSectors.reshape(-1, 1))
 	print(TrainingSectors)
-	
+
 
 	TrainingFeatures = TrainingFeatures.drop([u"鄉鎮市區"], axis=1)
 	TestingFeatures = TestingFeatures.drop([u"鄉鎮市區"], axis=1)
@@ -285,12 +287,12 @@ if __name__ == '__main__':
 	"""
 	TrainingFeatures = TrainingFeatures.values
 	TestingFeatures = TestingFeatures.values
-	ShowFeatureImportance(TrainingFeatures, TrainingLabels)
+	#ShowFeatureImportance(TrainingFeatures, TrainingLabels)
 
 	Smote = SMOTE()
 	TrainingFeatures, TrainingLabels = Smote.fit_sample(TrainingFeatures, TrainingLabels)
 
-	ShowFeatureImportance(TrainingFeatures, TrainingLabels)
+	#ShowFeatureImportance(TrainingFeatures, TrainingLabels)
 	
 
 	Spliter = StratifiedShuffleSplit(n_splits=10, test_size=0.1, random_state=0)
@@ -304,7 +306,7 @@ if __name__ == '__main__':
 			name = clf.__class__.__name__
 			clf.fit(X_train, y_train)
 			train_predictions = clf.predict(X_test)
-			acc = PriceRangeAcc(y_test, train_predictions, 1.0)
+			acc = PriceRangeAcc(y_test, train_predictions, 2.0)
 			if name in ResultDict:
 				ResultDict[name] += acc
 			else:
@@ -320,7 +322,7 @@ if __name__ == '__main__':
 	SVClassifier = SVC(probability=False)
 	SVClassifier.fit(TrainingFeatures, TrainingLabels)
 	SVCPrediction = SVClassifier.predict(TestingFeatures)
-	SVCAcc = PriceRangeAcc(TestingLabels, SVCPrediction, 1.0)
+	SVCAcc = PriceRangeAcc(TestingLabels, SVCPrediction, 2.0)
 	print("===================================")
 	print("SVC acc = " + str(SVCAcc))
 	"""
