@@ -18,14 +18,20 @@ Classifiers = [
 ]
 
 #FEATURE_COLUMN = [u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
-#FEATURE_COLUMN = [u"鄉鎮市區", u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"單價每平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
-FEATURE_COLUMN = [ u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"單價每平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
+FEATURE_COLUMN = [u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"單價每平方公尺", u"總額元"]
+#FEATURE_COLUMN = [u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"單價每平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
 #FEATURE_COLUMN = [u"鄉鎮市區", u"土地區段位置或建物區門牌", u"建築完成年月", u"單價每平方公尺", u"總額元"]
 #FEATURE_COLUMN = [u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"單價每平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
 #FEATURE_COLUMN = [u"建築完成年月", u"總額元"]
 HOUSE_TYPE = [u"住宅大樓", u"華廈", u"公寓", u"套房"]
-MRTLatLng = []
-AddressLatLngDict = {}
+
+def LoadMRTData(Path):
+	MRTLatLng = []
+	with open("./MRT.csv", 'r') as MRTFile:
+		MRTReader = csv.reader(MRTFile, delimiter=',')
+		for MRTExit in MRTReader:
+			MRTLatLng.append(np.array([float(MRTExit[4]), float(MRTExit[3])]))
+	return MRTLatLng
 
 def IsAHouse(Building):
 	for Type in HOUSE_TYPE:
@@ -51,17 +57,17 @@ def ConvertXMLToDataframe(XmlData):
 
 			TransactionDetail[TransactionColumn.tag] = TransactionColumn.text
 	
-		if None == TransactionDetail[u"單價每平方公尺"] or TransactionDetail[u"單價每平方公尺"] == 0:
+		if None == TransactionDetail[u"單價每平方公尺"] or TransactionDetail[u"單價每平方公尺"] == '0':
 			#print(TransactionDetail[u"土地區段位置或建物區門牌"])
 			continue
-		"""
+		
 		HouseType = IsAHouse(TransactionDetail[u"建物型態"])
 		
 		if not HouseType:# or '0' == TransactionDetail[u"建物現況格局-房"]:
 			continue
 		else:
 			TransactionDetail[u"建物型態"] = HouseType
-		"""
+		
 		AllRecords.append(TransactionDetail)
 	return pd.DataFrame(AllRecords)
 		
@@ -93,27 +99,46 @@ def PriceRangeAcc(GroundTruth, Prediction, Tolerance=1.0):
 			
 	return float(Correct)/float(TransactionCount)
 
-def GetNearestDistanceToMRT(Address):
-	Distance = 0.0
-	return Distance
+def GetNearestDistanceToMRT(Address, AddressLatLngData, MRTLatLngData):
+	AddressLatLng = AddressLatLngData[Address]
+	NearestDistance = float('inf')
+	for MRTLatLng in MRTLatLngData:
+		Distance = np.linalg.norm(MRTLatLng-AddressLatLng)
+		if Distance < NearestDistance:
+			NearestDistance = Distance
+	return NearestDistance
 
 def PreprocessDistanceFromMRT(Data):
-	##Using Google API perhaps
-	if os.path.isfile("./LatLngInfo.csv"):
-		#TODO Read
-		pass
+	AddressLatLngPath = "./LatLngInfo.csv"
+	AddressLatLngDict = {}
+	if os.path.isfile(AddressLatLngPath):
+		with open(AddressLatLngPath, 'r') as AddressBook:
+			AddressReader = csv.reader(AddressBook, delimiter=',')
+			for AddrInfo in AddressReader:
+				AddressLatLngDict[AddrInfo[0]] = np.array([float(AddrInfo[1]), float(AddrInfo[2])])
 	else:
 		for Addr in Data[u"土地區段位置或建物區門牌"]:
 			if not Addr in AddressLatLngDict:
 				GeoInfo = gcoder.arcgis(Addr+', Taipei')
 				if not GeoInfo.ok:
-					print("Fuck geocoder doesn't work")
+					print("Get latlng failed:")
 					print(Addr)
 				else:
 					print(Addr+"," + str(GeoInfo.latlng[0]) + "," + str(GeoInfo.latlng[1]))
 					AddressLatLngDict[Addr] = GeoInfo.latlng
+		with open('./LatLngInfo.csv', 'w') as CsvFile:
+			Writer = csv.writer(CsvFile, delimiter=',')
+			for Address in AddressLatLngDict:
+				Writer.writerow([Address, AddressLatLngDict[Address]])
+	MRTFilePath = "./MRT.csv"
+	MRTLatLngData = LoadMRTData("MRTFilePath")
+
+	Data["DistanceToMRT"] = Data[u"土地區段位置或建物區門牌"].apply(GetNearestDistanceToMRT, args=(AddressLatLngDict, MRTLatLngData))
 	
-	#Data["DistanceToMRT"] = Data[u"土地區段位置或建物區門牌"].apply(GetNearestDistanceToMRT)
+	DistanceToMRTMin = Data["DistanceToMRT"].min()
+	DistanceToMRTMax = Data["DistanceToMRT"].max()
+	Data["DistanceToMRT"] = Data["DistanceToMRT"]/(DistanceToMRTMax-DistanceToMRTMin)
+	Data["DistanceToMRT"] = Data["DistanceToMRT"].astype(float)
 	return Data
 
 def PreprocessBuildingAge(Data):
@@ -123,13 +148,13 @@ def PreprocessBuildingAge(Data):
 
 	NullAgeFillList = np.random.randint(Avg-Std, Avg+Std, size=NullAgeCount)
 	Data[u"建築完成年月"][np.isnan(Data[u"建築完成年月"])] = NullAgeFillList
-	"""
+	
 	MinAge = Data[u"建築完成年月"].min()
 	MaxAge = Data[u"建築完成年月"].max()
 	
 	Data[u"建築完成年月"] = Data[u"建築完成年月"] / (MaxAge-MinAge)
 	print(Data[u"建築完成年月"].max())
-	"""
+	
 	
 	#Data[u"建築完成年月"] = Data[u"建築完成年月"] / (MaxAge-MinAge)
 	
@@ -199,12 +224,12 @@ def PreprocessPrice(Data):
 	Data.loc[(Data[u"總額元"] > 40), u"總額元"] = 36
 	
 	Data[u"總額元"] = Data[u"總額元"].astype(int)
-	"""
+	
 	Data[u"單價每平方公尺"] = Data[u"單價每平方公尺"].astype(float)
 	MinUnitPrice = Data[u"單價每平方公尺"].min()
 	MaxUnitPrice = Data[u"單價每平方公尺"].max()
 	Data[u"單價每平方公尺"] = Data[u"單價每平方公尺"]/(MaxUnitPrice-MinUnitPrice)
-	"""
+	
 
 	return Data
 
@@ -220,13 +245,13 @@ def PreprocessMaterial(Data):
 
 def PreprocessArea(Data):
 	Data["Area"] = Data[u"總額元"].astype(float)/Data[u"單價每平方公尺"].astype(float)
-	"""
+	
 	MinArea = Data["Area"].min()
 	MaxArea = Data["Area"].max()
 	
 	Data["Area"] = Data["Area"]/(MaxArea - MinArea)
 	print(Data["Area"].max())
-	"""
+	
 	Data["Area"] = Data["Area"].astype(float)
 	
 	return Data
@@ -235,10 +260,10 @@ def Preprocess(Data):
 	Data = PreprocessBuildingAge(Data)
 	Data = PreprocessPrice(Data)
 
-	#Data = PreprocessBuildingType(Data)
+	Data = PreprocessBuildingType(Data)
 	#Data = PreprocessInterior(Data)
 	#Data = PreprocessHasManagementUnit(Data)
-	#Data = PreprocessMaterial(Data)
+	Data = PreprocessMaterial(Data)
 	Data = PreprocessArea(Data)
 	Data = PreprocessDistanceFromMRT(Data)
 	DropList = [u"土地區段位置或建物區門牌"]#, u"單價每平方公尺"]
@@ -269,13 +294,6 @@ if __name__ == '__main__':
 	TrainingData = Preprocess(TrainingData)
 	TestingData = Preprocess(TestingData)
 	
-	if not os.path.isfile("./LatLngInfo.csv"):
-		with open('./LatLngInfo.csv', 'w') as CsvFile:
-			Writer = csv.writer(CsvFile, delimiter=',')
-			for Address in AddressLatLngDict:
-				Writer.writerow([Address, AddressLatLngDict[Address]])
-	#print("How's it going?")
-	exit()
 	TrainingFeatures = TrainingData.loc[:, TrainingData.columns != u"總額元"]
 	TrainingLabels = np.asarray(TrainingData[u"總額元"], dtype=int)
 	print(TrainingLabels)
@@ -292,6 +310,7 @@ if __name__ == '__main__':
 	Enc.fit(Sectors)
 	TrainingFeatures[u"鄉鎮市區"] = Enc.transform(TrainingSectors)
 	TestingFeatures[u"鄉鎮市區"] = Enc.transform(TestingSectors)
+	
 	
 	#OneHotEncoder
 	Enc = preprocessing.OneHotEncoder(sparse=False)
