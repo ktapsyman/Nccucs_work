@@ -18,14 +18,9 @@ Classifiers = [
 ]
 
 #FEATURE_COLUMN = [u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
-<<<<<<< HEAD
 #FEATURE_COLUMN = [u"鄉鎮市區", u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"單價每平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
 FEATURE_COLUMN = [ u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"單價每平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
 #FEATURE_COLUMN = [u"鄉鎮市區", u"土地區段位置或建物區門牌", u"建築完成年月", u"單價每平方公尺", u"總額元"]
-=======
-#FEATURE_COLUMN = [u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"建築完成年月", u"單價每平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
-FEATURE_COLUMN = [u"鄉鎮市區", u"土地區段位置或建物區門牌", u"建築完成年月", u"單價每平方公尺", u"總額元"]
->>>>>>> f49ff03657a5c5f0be2c1720a109e956a854a45b
 #FEATURE_COLUMN = [u"土地區段位置或建物區門牌", u"建物型態", u"主要建材", u"單價每平方公尺", u"建物現況格局-房", u"建物現況格局-廳", u"建物現況格局-衛", u"建物現況格局-隔間", u"有無管理組織", u"有無附傢俱", u"總額元"]
 #FEATURE_COLUMN = [u"建築完成年月", u"總額元"]
 HOUSE_TYPE = [u"住宅大樓", u"華廈", u"公寓", u"套房"]
@@ -113,9 +108,9 @@ def PreprocessDistanceFromMRT(Data):
 				GeoInfo = gcoder.arcgis(Addr+', Taipei')
 				if not GeoInfo.ok:
 					print("Fuck geocoder doesn't work")
-					print(GeoInfo.json)
 					print(Addr)
 				else:
+					print(Addr+"," + str(GeoInfo.latlng[0]) + "," + str(GeoInfo.latlng[1]))
 					AddressLatLngDict[Addr] = GeoInfo.latlng
 	
 	#Data["DistanceToMRT"] = Data[u"土地區段位置或建物區門牌"].apply(GetNearestDistanceToMRT)
@@ -158,12 +153,13 @@ def PreprocessInterior(Data):
 
 def PreprocessPrice(Data):
 	Data[u"總額元"] = Data[u"總額元"].map(lambda Price:int(int(Price)/1000))
+	"""
 	print("Info about total price : ")
 	print(Data[u"總額元"].min())
 	print(Data[u"總額元"].max())
 	print(Data[u"總額元"].mean())
 	print(Data[u"總額元"].std())
-
+	"""
 	Data.loc[(Data[u"總額元"] <= 5), u"總額元"] = 0
 	Data.loc[(Data[u"總額元"] > 5) & (Data[u"總額元"] <= 6), u"總額元"] = 1
 	Data.loc[(Data[u"總額元"] > 6) & (Data[u"總額元"] <= 7), u"總額元"] = 2
@@ -278,7 +274,7 @@ if __name__ == '__main__':
 			Writer = csv.writer(CsvFile, delimiter=',')
 			for Address in AddressLatLngDict:
 				Writer.writerow([Address, AddressLatLngDict[Address]])
-	print("How's it going?")
+	#print("How's it going?")
 	exit()
 	TrainingFeatures = TrainingData.loc[:, TrainingData.columns != u"總額元"]
 	TrainingLabels = np.asarray(TrainingData[u"總額元"], dtype=int)
