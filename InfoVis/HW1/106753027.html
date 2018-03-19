@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<html>
+	<head>
+		<script src="https://d3js.org/d3.v4.min.js"></script>
+		<style>
+			.Bar rect
+			{
+				fill: red;
+			}
+			.Bar text
+			{
+				fill: black;
+				font: 10px sans-serif;
+			}
+		</style>
+	</head>
+	<body>
+		<svg class="bar"></svg>
+		<script type="text/javascript">
+			Casualties = {
+							"阿爾巴尼亞":30000,
+							"澳大利亞":40500,
+							"奧地利":120000,
+							"比利時":88000,
+							"巴西":2000,
+							"保加利亞王國":25000,
+							"緬甸":272000,
+							"加拿大":45400,
+							"中華民國":20000000,
+							"古巴":100,
+							"捷克斯洛伐克":325000,
+							"丹麥":3200,
+							"荷屬東印度":4000000,
+							"愛沙尼亞":50000,
+							"衣索比亞":100000,
+							"芬蘭":97000,
+							"法國":567600,
+							"法屬印度支那":1500000,
+							"納粹德國":8680000,
+							"希臘王國":805100,
+							"匈牙利王國":580000,
+							"冰島":200,
+							"英屬印度":2587000,
+							"伊朗":200,
+							"伊拉克王國":500,
+							"愛爾蘭":200,
+							"義大利王國":457000,
+							"大日本帝國":3120000,
+							"朝鮮半島":483000,
+							"拉脫維亞":230000,
+							"立陶宛":350000,
+							"盧森堡":2000,
+							"馬來亞":100000,
+							"馬爾他":1500,
+							"墨西哥":100,
+							"蒙古":300,
+							"諾魯":500,
+							"尼泊爾":0,
+							"荷蘭":301000,
+							"紐芬蘭自治領":100,
+							"紐西蘭":11900,
+							"挪威":9500,
+							"巴布亞紐幾內亞":15000,
+							"菲律賓":1057000,
+							"波蘭":5820000,
+							"葡屬帝汶":70000,
+							"羅馬尼亞王國":800000,
+							"盧安達-烏隆地":0,
+							"新加坡":50000,
+							"南非聯邦":11900,
+							"南洋廳":57000,
+							"蘇聯":23400000,
+							"西班牙國":0,
+							"瑞典":600,
+							"瑞士":100,
+							"泰國":7600,
+							"英國":450900,
+							"美國":418500,
+							"南斯拉夫":1027000
+						};
+			var Width = 1600;
+			var Height = 960;
+			var BarChart = d3.select(".Bar").attr("width", Width).attr("height", Height).append("g");
+			var Bins = d3.histogram().value(Object.values(Casualties));
+			BarChart
+			.selectAll("rect")
+			.data(Bins)
+			.enter()
+			.append("rect")
+			.attr("class", "Bar")
+			.attr("x", 1)
+			.attr("transform", 
+			function(Data)
+			{
+				return "translate(", Data.x0 , "," , Data.length , ")";
+			})
+			.attr("width", 
+			function(Data)
+			{
+				return 
+			})
+			.attr("height", function(Data){});
+		</script>
+	</body>
+</html>
