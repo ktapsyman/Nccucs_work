@@ -16,7 +16,7 @@
 		</style>
 	</head>
 	<body>
-		<svg class="bar"></svg>
+		<svg class="Bar"></svg>
 		<script type="text/javascript">
 			Casualties = {
 							"阿爾巴尼亞":30000,
@@ -79,13 +79,26 @@
 							"美國":418500,
 							"南斯拉夫":1027000
 						};
+			var DataArr = [];
+			for(Country in Casualties)
+			{
+				DataArr.push({"Country":Country, "Deaths":Casualties[Country]});
+			}
+
 			var Width = 1600;
 			var Height = 960;
+			
+			var XScale = d3.scaleOrdinal()
+							.domain(DataArr.map(function(Data){return Data.Country}))
+							.range(Array.apply(null, {length:DataArr.length}).map(Number.call,Number).map(function(x){return x*30;}));
+			var YScale = d3.scaleLinear()
+							//.domain(DataArr.map(function(Data){return Data.Deaths}))
+							.range([0, Height]);
 			var BarChart = d3.select(".Bar").attr("width", Width).attr("height", Height).append("g");
-			var Bins = d3.histogram().value(Object.values(Casualties));
+			//var Bins = d3.histogram().value(function(Data){return Data.Deaths;}).domain(YScale.domain())(DataArr);
 			BarChart
 			.selectAll("rect")
-			.data(Bins)
+			.data(DataArr)
 			.enter()
 			.append("rect")
 			.attr("class", "Bar")
@@ -93,14 +106,18 @@
 			.attr("transform", 
 			function(Data)
 			{
-				return "translate(", Data.x0 , "," , Data.length , ")";
+				return "translate(" + XScale(Data.Country) + "," + Height + ")";
 			})
-			.attr("width", 
+			.attr("width", "30px")
+			.attr("x", function(Data){return XScale(Data.Country);})
+			.attr("y", function(Data){return YScale(Data.Deaths)-Height});
+			/*
+			.attr("height", 
 			function(Data)
 			{
-				return 
+				return YScale(Data.Deaths);
 			})
-			.attr("height", function(Data){});
+			*/
 		</script>
 	</body>
 </html>
