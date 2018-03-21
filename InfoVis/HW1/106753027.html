@@ -90,6 +90,7 @@
 			}
 			var Width = 1600;
 			var Height = 960;
+			var Margin = {"Left":100, "Top":100};
 			XBlockWidth = Width/DataArr.length
 
 			var MinY = d3.min(DataArr, function(Data){return Data.Deaths});
@@ -101,7 +102,7 @@
 			var YScale = d3.scaleLinear()
 							.domain([MinY, MaxY])
 							.range([Height, 0]);
-			var BarChart = d3.select(".Bar").attr("width", Width).attr("height", Height).append("g");
+			var BarChart = d3.select(".Bar").attr("width", (Width+Margin.Left)).attr("height", (Height+Margin.Top+100)).append("g").attr("transform", "translate(" + Margin.Left + ",0)");
 			//var Bins = d3.histogram().value(function(Data){return Data.Deaths;}).domain(YScale.domain())(DataArr);
 			BarChart
 			.selectAll("rect")
@@ -109,22 +110,27 @@
 			.enter()
 			.append("rect")
 			.attr("class", "Bar")
-			.attr("x", 1)
 			.attr("transform", 
 			function(Data)
 			{
 				return "translate(" + XScale(Data.Country) + ","+ YScale(Data.Deaths) + ")";
 			})
 			.attr("width", "25px")
-			/*
-			.attr("x", function(Data){return XScale(Data.Country);})
-			.attr("y", function(Data){return YScale(Data.Deaths)});
-			*/
 			.attr("height", 
 			function(Data)
 			{
 				return Height-YScale(Data.Deaths);
-			})
+			});
+
+			BarChart.append("g")
+					.attr("transform", "translate(" + XBlockWidth + ", "+ (Height) +")")
+					.call(d3.axisBottom(XScale))
+					.selectAll("text")
+					.attr("transform", "rotate(90)");
+
+			BarChart.append("g")
+					.call(d3.axisLeft(YScale));
+
 		</script>
 	</body>
 </html>
