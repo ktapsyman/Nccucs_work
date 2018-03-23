@@ -6,7 +6,7 @@
 		<style>
 			.Bar rect
 			{
-				fill: red;
+				fill: grey;
 			}
 			.Bar text
 			{
@@ -16,6 +16,12 @@
 		</style>
 	</head>
 	<body>
+		<p>資料簡介：</p>
+		<p>
+			二次世界大戰是人類史上傷亡最慘重的戰爭之一，本網頁使用表列於維基百科資料，將二次世界大戰各國的傷亡作視覺化呈現
+		</p>
+		<p>資料來源：<a href=https://en.wikipedia.org/wiki/World_War_II_casualties>Wikipedia</a></p>
+		
 		<svg class="Bar"></svg>
 		<script type="text/javascript">
 			Casualties = {
@@ -88,9 +94,10 @@
 				}
 				DataArr.push({"Country":Country, "Deaths":Math.log(Casualties[Country])});
 			}
+
 			var Width = 1600;
 			var Height = 960;
-			var Margin = {"Left":100, "Top":100};
+			var Margin = {"Left":200, "Top":100};
 			XBlockWidth = Width/DataArr.length
 
 			var MinY = d3.min(DataArr, function(Data){return Data.Deaths});
@@ -102,20 +109,29 @@
 			var YScale = d3.scaleLinear()
 							.domain([MinY, MaxY])
 							.range([Height, 0]);
+
 			var BarChart = d3.select(".Bar").attr("width", (Width+Margin.Left)).attr("height", (Height+Margin.Top+100)).append("g").attr("transform", "translate(" + Margin.Left + ",0)");
-			//var Bins = d3.histogram().value(function(Data){return Data.Deaths;}).domain(YScale.domain())(DataArr);
+
 			BarChart
 			.selectAll("rect")
 			.data(DataArr)
 			.enter()
 			.append("rect")
+			.on("mouseover", function()
+			{
+				d3.select(this).style("fill", "red");
+			})
+			.on("mouseout", function()
+			{
+				d3.select(this).style("fill", "grey");
+			})
 			.attr("class", "Bar")
 			.attr("transform", 
 			function(Data)
 			{
 				return "translate(" + XScale(Data.Country) + ","+ YScale(Data.Deaths) + ")";
 			})
-			.attr("width", "25px")
+			.attr("width", "20px")
 			.attr("height", 
 			function(Data)
 			{
@@ -126,10 +142,31 @@
 					.attr("transform", "translate(" + XBlockWidth + ", "+ (Height) +")")
 					.call(d3.axisBottom(XScale))
 					.selectAll("text")
-					.attr("transform", "rotate(90)");
+					.attr("transform", "rotate(90)")
+					.attr("dx", "5px")
+					.style("font-size", "20")
+					.style("text-anchor", "start");
 
 			BarChart.append("g")
 					.call(d3.axisLeft(YScale));
+
+			BarChart = d3.select(".Bar");
+			BarChart.append("text")
+					.attr("transform", function()
+					{
+						return "translate(" + (Width/2+Margin.Left) + ", " + (Height+Margin.Top+60) + ")";
+					})
+					.text("國家")
+					.style("font-size", "30");
+
+			BarChart.append("text")
+					.attr("transform", function()
+					{
+						return "translate(0, " + (Height/2) + ")";
+					})
+					.text("總死傷數(log)")
+					.style("font-size", "30");
+
 
 		</script>
 	</body>
