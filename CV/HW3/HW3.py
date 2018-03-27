@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 
 import sys
 import operator
@@ -28,36 +29,75 @@ def CreateHistogramEqualizer(CDFMin, ImgSize, GrayScaleLevel=256):
 
 	return HistogramEqualizer
 
-def Q1():
-	Img = cv2.imread("hw3.jpg", cv2.IMREAD_GRAYSCALE)
+def HistogramEqualize(Img):
 	CDF = CalculateCDFFrom2DPixels(Img)
 	CDFMin = list(CDF)[0]
 	HistogramEqualizer = CreateHistogramEqualizer(CDFMin, Img.size)
-
-	cv2.imshow("Before", Img)
 
 	Height, Width = Img.shape
 	for Row in range(0, Height):
 		for Col in range(0, Width):
 			Img[Row][Col] = HistogramEqualizer(CDF[Img[Row][Col]])
+
+	return Img
+
+def ShowComparison(Title, OriginalImg, EqualizedImg):
+	if Title is None or 0 == len(Title):
+		Title = "Default Title"
 	
-	cv2.imshow("After", Img)
+	ComparisonImg = np.hstack((OriginalImg, EqualizedImg))
+	cv2.imshow(Title, ComparisonImg)
+
+def Q1():
+	Img = cv2.imread("hw3.jpg", cv2.IMREAD_GRAYSCALE)
+	EqualizedImg = HistogramEqualize(Img.copy())
+	
+	ShowComparison("Q1", Img, EqualizedImg)
 	return
 
 def Q2():
-	Q2a()
-	Q2b()
-	Q2c()
+	Img = cv2.imread("hw3a.jpg", cv2.IMREAD_COLOR)
+	Q2a(Img.copy())
+	Q2b(Img.copy())
+	Q2c(Img.copy())
 
 	return
 
-def Q2a():
+def Q2a(Img):
+	BChannel, GChannel, RChannel = cv2.split(Img)
+
+	# B
+	EqualizedBChannel = HistogramEqualize(BChannel)
+
+	# G
+	EqualizedGChannel = HistogramEqualize(GChannel)
+
+	# R
+	EqualizedRChannel = HistogramEqualize(RChannel)
+	
+	EqualizedImg = cv2.merge((EqualizedBChannel, EqualizedGChannel, EqualizedRChannel))
+	ShowComparison("Q2a", Img, EqualizedImg)
 	return
 
-def Q2b():
+def Q2b(Img):
+	Img = cv2.cvtColor(Img, cv2.COLOR_BGR2HSV)
+	HChannel, SChannel, VChannel = cv2.split(Img)
+
+	EqulizedVChannel = HistogramEqualize(VChannel)
+
+	EqualizedImg = cv2.merge((HChannel, SChannel, EqulizedVChannel))
+	ShowComparison("Q2b", Img, EqualizedImg)
+
 	return
 
-def Q2c():
+def Q2c(Img):
+	Img = cv2.cvtColor(Img, cv2.COLOR_BGR2YCR_CB)
+	YChannel, CbChannel, CrChannel = cv2.split(Img)
+
+	EqulizedYChannel = HistogramEqualize(YChannel)
+
+	EqualizedImg = cv2.merge((EqulizedYChannel, CbChannel, CrChannel))
+	ShowComparison("Q2c", Img, EqualizedImg)
 	return
 
 def Main():
