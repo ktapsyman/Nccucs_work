@@ -25,7 +25,7 @@ def CalculateCDFFrom2DPixels(Pixels):
 	return CDF
 
 def CreateHistogramEqualizer(CDFMin, ImgSize, GrayScaleLevel=256):
-	HistogramEqualizer = lambda CDFofPixel: round((CDFofPixel-CDFMin)*(GrayScaleLevel-1)/(ImgSize-1))
+	HistogramEqualizer = lambda CDFofPixel: round((CDFofPixel-CDFMin)*(GrayScaleLevel-1)/(ImgSize-1.0))
 
 	return HistogramEqualizer
 
@@ -51,9 +51,8 @@ def ShowComparison(Title, ImgTuple):
 def Q1():
 	Img = cv2.imread("hw3.jpg", cv2.IMREAD_GRAYSCALE)
 	EqualizedImg = HistogramEqualize(Img.copy())
-	OpenCVEqImg = cv2.equalizeHist(Img.copy)
-
-	ShowComparison("Q1", (Img, EqualizedImg, OpenCVEqImg))
+	OpenCVEqImg = cv2.equalizeHist(Img.copy())
+	ShowComparison("Q1", (Img, EqualizedImg, OpenCVEqImg, EqualizedImg-OpenCVEqImg))
 	return
 
 def Q2():
@@ -81,7 +80,7 @@ def Q2a(Img):
 	
 	EqualizedImg = cv2.merge((EqualizedBChannel, EqualizedGChannel, EqualizedRChannel))
 	OpenCVEqImg = cv2.merge((OpenCVEqualizedBChannel, OpenCVEqualizedGChannel, OpenCVEqualizedRChannel))
-	ShowComparison("Q2a", (Img, EqualizedImg, OpenCVEqImg))
+	ShowComparison("Q2a", (Img, EqualizedImg, OpenCVEqImg, EqualizedImg-OpenCVEqImg))
 	return
 
 def Q2b(Img):
@@ -92,8 +91,8 @@ def Q2b(Img):
 	OpenCVEqulizedVChannel = cv2.equalizeHist(VChannel.copy())
 
 	EqualizedImg = cv2.merge((HChannel, SChannel, EqulizedVChannel))
-	OpenCVEqualizedImg = cv2.merge((HChannel, SChannel, OpenCVEqulizedVChannel))
-	ShowComparison("Q2b", (Img, EqualizedImg, OpenCVEqualizedImg))
+	OpenCVEqImg = cv2.merge((HChannel, SChannel, OpenCVEqulizedVChannel))
+	ShowComparison("Q2b", (Img, EqualizedImg, OpenCVEqImg, EqualizedImg-OpenCVEqImg))
 
 	return
 
@@ -105,8 +104,8 @@ def Q2c(Img):
 	OpenCVEqulizedYChannel = cv2.equalizeHist(YChannel.copy())
 
 	EqualizedImg = cv2.merge((EqulizedYChannel, CbChannel, CrChannel))
-	OpenCVEqualizedImg = cv2.merge((OpenCVEqulizedYChannel, CbChannel, CrChannel))
-	ShowComparison("Q2c", (Img, EqualizedImg, OpenCVEqualizedImg))
+	OpenCVEqImg = cv2.merge((OpenCVEqulizedYChannel, CbChannel, CrChannel))
+	ShowComparison("Q2c", (Img, EqualizedImg, OpenCVEqImg, EqualizedImg-OpenCVEqImg))
 	return
 
 def Main():
