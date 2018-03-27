@@ -41,18 +41,19 @@ def HistogramEqualize(Img):
 
 	return Img
 
-def ShowComparison(Title, OriginalImg, EqualizedImg):
+def ShowComparison(Title, ImgTuple):
 	if Title is None or 0 == len(Title):
 		Title = "Default Title"
 	
-	ComparisonImg = np.hstack((OriginalImg, EqualizedImg))
+	ComparisonImg = np.hstack(ImgTuple)
 	cv2.imshow(Title, ComparisonImg)
 
 def Q1():
 	Img = cv2.imread("hw3.jpg", cv2.IMREAD_GRAYSCALE)
 	EqualizedImg = HistogramEqualize(Img.copy())
-	
-	ShowComparison("Q1", Img, EqualizedImg)
+	OpenCVEqImg = cv2.equalizeHist(Img.copy)
+
+	ShowComparison("Q1", (Img, EqualizedImg, OpenCVEqImg))
 	return
 
 def Q2():
@@ -67,26 +68,32 @@ def Q2a(Img):
 	BChannel, GChannel, RChannel = cv2.split(Img)
 
 	# B
-	EqualizedBChannel = HistogramEqualize(BChannel)
+	EqualizedBChannel = HistogramEqualize(BChannel.copy())
+	OpenCVEqualizedBChannel = cv2.equalizeHist(BChannel.copy())
 
 	# G
-	EqualizedGChannel = HistogramEqualize(GChannel)
+	EqualizedGChannel = HistogramEqualize(GChannel.copy())
+	OpenCVEqualizedGChannel = cv2.equalizeHist(GChannel.copy())
 
 	# R
-	EqualizedRChannel = HistogramEqualize(RChannel)
+	EqualizedRChannel = HistogramEqualize(RChannel.copy())
+	OpenCVEqualizedRChannel = cv2.equalizeHist(RChannel.copy())
 	
 	EqualizedImg = cv2.merge((EqualizedBChannel, EqualizedGChannel, EqualizedRChannel))
-	ShowComparison("Q2a", Img, EqualizedImg)
+	OpenCVEqImg = cv2.merge((OpenCVEqualizedBChannel, OpenCVEqualizedGChannel, OpenCVEqualizedRChannel))
+	ShowComparison("Q2a", (Img, EqualizedImg, OpenCVEqImg))
 	return
 
 def Q2b(Img):
 	Img = cv2.cvtColor(Img, cv2.COLOR_BGR2HSV)
 	HChannel, SChannel, VChannel = cv2.split(Img)
 
-	EqulizedVChannel = HistogramEqualize(VChannel)
+	EqulizedVChannel = HistogramEqualize(VChannel.copy())
+	OpenCVEqulizedVChannel = cv2.equalizeHist(VChannel.copy())
 
 	EqualizedImg = cv2.merge((HChannel, SChannel, EqulizedVChannel))
-	ShowComparison("Q2b", Img, EqualizedImg)
+	OpenCVEqualizedImg = cv2.merge((HChannel, SChannel, OpenCVEqulizedVChannel))
+	ShowComparison("Q2b", (Img, EqualizedImg, OpenCVEqualizedImg))
 
 	return
 
@@ -94,10 +101,12 @@ def Q2c(Img):
 	Img = cv2.cvtColor(Img, cv2.COLOR_BGR2YCR_CB)
 	YChannel, CbChannel, CrChannel = cv2.split(Img)
 
-	EqulizedYChannel = HistogramEqualize(YChannel)
+	EqulizedYChannel = HistogramEqualize(YChannel.copy())
+	OpenCVEqulizedYChannel = cv2.equalizeHist(YChannel.copy())
 
 	EqualizedImg = cv2.merge((EqulizedYChannel, CbChannel, CrChannel))
-	ShowComparison("Q2c", Img, EqualizedImg)
+	OpenCVEqualizedImg = cv2.merge((OpenCVEqulizedYChannel, CbChannel, CrChannel))
+	ShowComparison("Q2c", (Img, EqualizedImg, OpenCVEqualizedImg))
 	return
 
 def Main():
