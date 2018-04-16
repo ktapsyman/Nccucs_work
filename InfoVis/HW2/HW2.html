@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<html>
+	<head>
+		<script src="https://d3js.org/d3.v4.min.js"></script>
+		<style>
+			select
+			{
+				width:200px;
+				height:20;
+			}
+			option
+			{
+				width:200px;
+				height:20px;
+			}
+			.Bar rect
+			{
+				fill: grey;
+			}
+			.Bar text
+			{
+				fill: black;
+				font: 10px sans-serif;
+			}
+		</style>
+	</head>
+	<body>
+		<p>資料簡介：<br>
+		   PTT是許多學生群聚討論間打嘴砲、交流最新消息的資訊聚集地。本次作業使用爬蟲抓取<br>
+			C_CHAT及八卦版最新（此作業繳交前）10000篇文章的標題，利用Jieba(結巴)去除StopWords及斷詞後，<br>
+			統計詞頻最高的10個詞彙，將結果以D3js呈現。
+		</p>
+		<p>資料來源：PTT</p>
+		<p>爬蟲＆斷詞：<a href="https://github.com/ktapsyman/TuesdayStudyGroup">Github</a></p>
+		<select onchange="SetDataByBoard(this)">
+			<option value="GOSSIPING">八卦板</option>
+			<option selected="selected" value="C_CHAT">西洽</option>
+		</select>
+		<svg class="Chart"></svg>
+		<script type="text/javascript">
+			function SetDataByBoard(SelectObj)
+			{
+				UpdateBarChart(SelectObj.value);
+			}
+		
+			function UpdateBarChart(Board)
+			{
+				var Data = DataDict[Board];
+				var BlockWidth = Width/Data.length;
+				var MinY = d3.min(Data, function(Data){return Data.TF;});
+				var MaxY = d3.max(Data, function(Data){return Data.TF;});
+
+				XScale.domain(Data.map(function(Data){console.log(Data.Term);return Data.Term;}))
+					.range(Array.apply(null, {length:Data.length}).map(Number.call,Number).map(function(x){return x*BlockWidth;}));
+
+				YScale.domain([0, MaxY]);
+
+				var Bars = BarChart.selectAll(".Bar")
+							.remove()
+							.exit()
+							.data(Data);
+
+				Bars
+				.enter()
+				.append("rect")
+				.attr("class", "Bar")
+				.attr("transform", 
+				function(Data)
+				{
+					return "translate(" + XScale(Data.Term)+ ","+ YScale(Data.TF) + ")";
+				})
+				.attr("width", "20px")
+				.transition()
+				.duration(3000)
+				.attr("y", 0)
+				.attr("height", 
+				function(Data)
+				{
+					return Height-YScale(Data.TF);
+				});
+			
+				BarChart.select(".XAxis")
+					.attr("transform", "translate(0" + ", "+ (Height) +")")
+					.call(XAxis)
+					.selectAll("text")
+					//.attr("transform", "rotate(90)")
+					.attr("dx", "5px")
+					.style("font-size", "20")
+					.style("text-anchor", "start");
+
+				BarChart.select(".YAxis")
+					.call(YAxis)
+					.selectAll("text")
+					.style("font-size", "20");
+		}
+
+		var DataDict = {
+			"GOSSIPING" : [
+				{"Term":"台灣", "TF":519},
+				{"Term":"中國","TF":268},
+				{"Term":"歲","TF":186},
+				{"Term":"日本","TF":185},
+				{"Term":"說","TF":173},
+				{"Term":"10","TF":164},
+				{"Term":"真的","TF":163},
+				{"Term":"肥宅","TF":157},
+				{"Term":"台","TF":149},
+				{"Term":"柯","TF":143},
+				
+			],
+			"C_CHAT" : [
+				{"Term":18, "TF":723},
+				{"Term":"動畫","TF":539},
+				{"Term":"遊戲","TF":360},
+				{"Term":"一句","TF":305},
+				{"Term":"作品","TF":280},
+				{"Term":"漫畫","TF":261},
+				{"Term":"雷","TF":229},
+				{"Term":"世界","TF":188},
+				{"Term":"角色","TF":177},
+				{"Term":"魔法","TF":144},
+			],
+		};
+		var Width = 1600;
+		var Height = 960;
+		var Margin = {"Left":200, "Top":100};
+		XBlockWidth = Width/DataDict.C_CHAT.length
+
+		var XScale = d3.scaleOrdinal();
+
+		var YScale = d3.scaleLinear()
+				.range([Height, 0]);
+
+		var BarChart = d3.select(".Chart")
+			.attr("width", Width + Margin.Left)
+			.attr("height", Height + Margin.Top)
+			.append("g")
+			.attr("transform", "translate(" + Margin.Left + ",20)");
+		
+		var XAxis = d3.axisBottom(XScale);
+		var YAxis = d3.axisLeft(YScale);
+		
+		BarChart.append("g")
+				.attr("class", "XAxis")
+				.attr("transform", "translate(0" + ", "+ (Height) +")")
+				.call(XAxis)
+				.selectAll("text")
+				.attr("transform", "rotate(90)")
+				.attr("dx", "5px")
+				.style("font-size", "20")
+				.style("text-anchor", "start");
+
+		BarChart.append("g")
+				.attr("class", "YAxis")
+				.call(YAxis)
+				.selectAll("text")
+				.style("font-size", "20");
+
+		var Bars = d3.select(".Chart");
+		Bars.append("text")
+				.attr("transform", function()
+				{
+					return "translate(" + (Width/2+Margin.Left+30) + ", " + (Height+Margin.Top-10) + ")";
+				})
+				.text("詞彙")
+				.style("font-size", "30");
+
+		Bars.append("text")
+				.attr("transform", function()
+				{
+					return "translate(0, " + (Height/2) + ")";
+				})
+				.text("出現次數")
+				.style("font-size", "30");
+
+		UpdateBarChart("C_CHAT");
+
+		</script>
+	</body>
+</html>

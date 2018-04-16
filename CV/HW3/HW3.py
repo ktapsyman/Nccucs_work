@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from matplotlib import pyplot as plt
 
 import sys
 import operator
@@ -48,6 +49,14 @@ def ShowComparison(Title, ImgTuple):
 	ComparisonImg = np.hstack(ImgTuple)
 	cv2.imshow(Title, ComparisonImg)
 
+def ShowImgHist(Img):
+	Colors = ["b", "g", "r"]
+	for Index, Color in enumerate(Colors):
+		Hist = cv2.calcHist([Img], [Index], None, [256], [0, 256])
+		plt.plot(Hist, color=Color)
+		plt.xlim([0, 256])
+	plt.show()
+
 def Q1():
 	Img = cv2.imread("hw3.jpg", cv2.IMREAD_GRAYSCALE)
 	EqualizedImg = HistogramEqualize(Img.copy())
@@ -64,6 +73,7 @@ def Q2():
 	return
 
 def Q2a(Img):
+	ShowImgHist(Img)
 	BChannel, GChannel, RChannel = cv2.split(Img)
 
 	# B
@@ -79,6 +89,7 @@ def Q2a(Img):
 	OpenCVEqualizedRChannel = cv2.equalizeHist(RChannel.copy())
 	
 	EqualizedImg = cv2.merge((EqualizedBChannel, EqualizedGChannel, EqualizedRChannel))
+	ShowImgHist(EqualizedImg)
 	OpenCVEqImg = cv2.merge((OpenCVEqualizedBChannel, OpenCVEqualizedGChannel, OpenCVEqualizedRChannel))
 	ShowComparison("Q2a", (Img, EqualizedImg, OpenCVEqImg, EqualizedImg-OpenCVEqImg))
 	return
