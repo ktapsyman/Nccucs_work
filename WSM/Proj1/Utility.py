@@ -7,6 +7,7 @@ from nltk.corpus import stopwords
 
 nltk.download('stopwords')
 nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
 STOP_WORDS = set(stopwords.words('english')+[',', ';', ':', '!', '.', '?'])
 
 def LoadDoc(FilePath):
@@ -25,6 +26,9 @@ def StemWords(WordList):
 def RemoveStopWords(WordList):
 	global STOP_WORDS
 	return[ Word for Word in WordList if Word not in STOP_WORDS ]
+
+def GetWordCategory(WordList):
+    return dict(nltk.tag.pos_tag(WordList))
 
 def CalcTF(WordList):
 	return Counter(WordList)

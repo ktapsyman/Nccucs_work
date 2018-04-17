@@ -7,20 +7,27 @@ class Doc(object):
 		else:
 			self.Id = FileName.split(".")[0]
 		self._RawTF = CalcTF(DocWordList)
-		self._DocVector = {"TF":[], "TD-IDF":[]}
+		self._DocVector = {"TF":[], "TD-IDF":[], "TF-IDF-NV-ONLY":[]}
 	
 	def GetTFDict(self):
 		return self._RawTF
 	
-	def CalcDocVector(self, BagOfWords, IDFVec):
+	def CalcDocVector(self, BagOfWords, WordCategory, IDFVec):
 		for Word in BagOfWords:
 			if Word in self._RawTF:
 				self._DocVector["TF"].append(self._RawTF[Word])
+				if "NN" in WordCategory[Word] or "VB" in WordCategory[Word]:
+					self._DocVector["TF-IDF-NV-ONLY"].append(self._RawTF[Word])
+				else:
+					self._DocVector["TF-IDF-NV-ONLY"].append(0.0)
 			else:
 				self._DocVector["TF"].append(0.0)
+				self._DocVector["TF-IDF-NV-ONLY"].append(0.0)
 		
-		self._DocVector["TF"] = np.array(self._DocVector["TF"]) #Normalized(np.array(self._DocVector["TF"]))
+		self._DocVector["TF"] = np.array(self._DocVector["TF"])
+		self._DocVector["TF-IDF-NV-ONLY"] = np.array(self._DocVector["TF-IDF-NV-ONLY"])
 		self._DocVector["TF-IDF"] = self._DocVector["TF"]*IDFVec
+		self._DocVector["TF-IDF-NV-ONLY"] = self._DocVector["TF-IDF-NV-ONLY"]*IDFVec
 
 	def GetDocVector(self, Mode=""):
 		if Mode is None or 0 == len(Mode):

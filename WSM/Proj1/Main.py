@@ -11,14 +11,14 @@ def Preprocessing(DocStr):
 	return DocWordList
 	
 
-def QueryLoop(Docs, BagOfWords, IDF):
+def QueryLoop(Docs, BagOfWords, WordCategory, IDF):
 	while True:
 		QueryStr = input("Please input query string, or Q to quit the program\n")
 		if QueryStr == "Q":
 			break
 		QueryWordList = Preprocessing(QueryStr)
 		QueryDoc = Doc("", QueryWordList)
-		QueryDoc.CalcDocVector(BagOfWords, IDF)
+		QueryDoc.CalcDocVector(BagOfWords, WordCategory, IDF)
 		
 		ResultDict = {"TF-Cosine":[], "TF-Euclidean":[], "TFIDF-Cosine":[], "TFIDF-Euclidean":[]}
 		for Document in Docs:
@@ -37,7 +37,7 @@ def QueryLoop(Docs, BagOfWords, IDF):
 		
 		ResultDict["TFIDF-RF-Cosine"] = []
 		PseudoFeedBack = ResultDict["TFIDF-Cosine"][0][0]
-		RFQueryVector = QueryDoc.GetDocVector("TF-IDF") + 0.5*PseudoFeedBack.GetDocVector("TF-IDF")
+		RFQueryVector = QueryDoc.GetDocVector("TF-IDF") + 0.5*PseudoFeedBack.GetDocVector("TF-IDF-NV-ONLY")
 		for Document in Docs:
 			ResultDict["TFIDF-RF-Cosine"].append((Document, CosineSimilarity(Document.GetDocVector("TF-IDF"), RFQueryVector)))
 		ResultDict["TFIDF-RF-Cosine"] = sorted(ResultDict["TFIDF-RF-Cosine"], key=lambda x:x[1], reverse=True)[:5]
@@ -60,11 +60,10 @@ def Main():
 		Docs.append(DocObj)
 	
 	BagOfWords = np.array(list(DF.keys()))
+	WordCategory = GetWordCategory(list(DF.keys()))
 	IDF = CalcIDF(DF, len(Docs))
-	print(IDF)
 	for Document in Docs:
-		Document.CalcDocVector(BagOfWords, IDF)
-	print(len(BagOfWords))
-	QueryLoop(Docs, BagOfWords, IDF)
+		Document.CalcDocVector(BagOfWords, WordCategory, IDF)
+	QueryLoop(Docs, BagOfWords, WordCategory, IDF)
 
 Main()
