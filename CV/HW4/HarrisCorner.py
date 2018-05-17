@@ -3,7 +3,7 @@ import sys
 import numpy as np
 import cv2
 
-def HarrisDetector(Img, WindowSize=3, K=0.05, Threshold=300000):
+def HarrisDetector(Img, WindowSize=3, K=0.05, Threshold=10000):
 	CornerList = []
 		
 	Img = cv2.cvtColor(Img, cv2.COLOR_BGR2GRAY)
@@ -24,13 +24,13 @@ def HarrisDetector(Img, WindowSize=3, K=0.05, Threshold=300000):
 			Det = Sxx*Syy-Sxy**2
 			Response = Det - K*((Sxx+Syy)**2)
 			if Response > Threshold:
-				CornerList.append((X, Y))
+				CornerList.append((Y, X))
 
 	return CornerList
 
 def DrawCorners(Img, CornerList):
 	for Corner in CornerList:
-		cv2.circle(Img, Corner, 10, (0, 128, 0), 1)
+		cv2.circle(Img, (Corner[1], Corner[0]), 3, (0, 0, 255), 1)
 	return 
 
 def Main():
@@ -38,7 +38,7 @@ def Main():
 	if Img is None:
 		print("Fail to read image")
 		exit()
-
+	print(Img.shape)
 	cv2.imshow("OriginalImg", Img)
 
 	CornerList = HarrisDetector(Img.copy())
