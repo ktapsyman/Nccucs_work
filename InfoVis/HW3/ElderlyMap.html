@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<html>
+    <head>
+        <script src="https://d3js.org/d3.v3.min.js"></script>
+        <script type="text/javascript" src="http://d3js.org/topojson.v1.min.js"></script>
+		<script src="http://d3js.org/queue.v1.min.js"></script>
+		<script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+        <style>
+			path
+			{
+				fill:none;
+				border:1px solid white;
+			}
+			.county-boundary
+			{
+				fill: none;
+			  	stroke: #fff;
+			  	stroke-dasharray: 5,0;
+			  	stroke-linejoin: round;
+			}
+
+			.town-boundary
+			{
+				fill: none;
+			  	stroke: #fff;
+			  	stroke-dasharray: 5,0;
+			  	stroke-linejoin: round;
+			}
+        </style>
+    </head>
+    <body>
+		<text>平溪區老年人口比率@104：</text><text id="TxtElderlyPercentage"></text> <br>
+		<text>平溪區老年人口增加率(%)：</text><input id="ElderlyIncremental" type="number" /> <br>
+		<text>年度：</text><text id="TxtYear">104</text><input id="Year" type="range" min="104" max="124" step="1" value="104" oninput="onYearChange(this.value)" /> <br>
+		<p>資料來源：<a href="https://segis.moi.gov.tw/STAT/Web/Platform/Catalog/STAT_Catalog.aspx">社會經濟資料服務平台</a></p>
+		<div id="Info"><div id="TownName"></div><div id="ElderlyInfo"></div></div>
+        <svg width="1600px" height="1200px" viewBox="0 0 1600 1200"></svg>
+        <script>
+			var gElderlyIncrement = 0.0;//平均每年老人比率增加%數
+			var gColorScale = d3.scale.linear().domain([0, 0.5]).range(["#0f0","#f00"]);
+			var gTownAgeData = {};
+			var gStartYear = 104;
+			jQuery(function($){
+				var AgeData = null;
+				$(document).ready(function()
+				{
+					queue()
+						.defer(d3.csv, "104.csv")
+						.defer(d3.csv, "105.csv")
+						.defer(d3.csv, "106.csv")
+						.awaitAll(PrepareElderlyHeatmap);
+					
+				});
+				console.log(gTownAgeData);
+			});
+			
+			function onYearChange(Year)
+			{
+				d3.select("#TxtYear").text(Year);
+				UpdateTownHeatMapByTownId("65000240", Year);
+			}
+
+			function UpdateTownHeatMapByTownId(TownId, Year)
+			{
+				var YearsPassed = Year - gStartYear;
+				var ElderlyPercentage = Number(d3.select("#TxtElderlyPercentage").text()) + YearsPassed*d3.select("#ElderlyIncremental").property("value")/100.0;
+				d3.select("#t"+TownId).style("fill", gColorScale(ElderlyPercentage));
+			}
+
+			function CalcElderlyPercentage(ElderlyDep, YouthDep)
+			{
+				return ElderlyDep/(100+YouthDep);
+			}
+			
+			function PrepareElderlyHeatmap(error, data)
+			{
+				var ElderlyIncremental = 0.0;
+				for(year in data)
+				{
+					for(townData in data[year])
+					{
+						data[year][townData].A65UP_A15A64_RAT = Number(data[year][townData].A65UP_A15A64_RAT);
+						data[year][townData].A0A14_A15A65_RAT = Number(data[year][townData].A0A14_A15A65_RAT);
+						if(null == gTownAgeData[data[year][townData].TOWN_ID])
+						{
+							gTownAgeData[data[year][townData].TOWN_ID] = {};
+						}
+						gTownAgeData[data[year][townData].TOWN_ID][Number(year)+gStartYear] = CalcElderlyPercentage(data[year][townData].A65UP_A15A64_RAT, data[year][townData].A0A14_A15A65_RAT);
+						if(data[year][townData].TOWN_ID == "65000240")
+						{
+							if(year == 0)//First year will be considered as baseline
+							{
+								d3.select("#TxtElderlyPercentage").text(CalcElderlyPercentage(data[year][townData].A65UP_A15A64_RAT, data[year][townData].A0A14_A15A65_RAT));
+							}
+							else
+							{
+								ElderlyIncremental += (CalcElderlyPercentage(data[year][townData].A65UP_A15A64_RAT, data[year][townData].A0A14_A15A65_RAT) - CalcElderlyPercentage(data[year-1][townData].A65UP_A15A64_RAT, data[year-1][townData].A0A14_A15A65_RAT));
+							}
+						}
+					}
+				}
+				d3.select("#ElderlyIncremental").property("value", ElderlyIncremental*100/(data.length-1));
+            	DrawTaiwan();
+			}
+		
+            function DrawTaiwan()
+			{
+                d3.json("county.json", function(topodata) {
+                this.topodata = topodata;
+
+                var CountyFeatures = topojson.feature(topodata, topodata.objects["county"]).features;
+
+                var path = d3.geo.path().projection( // 路徑產生器
+                    	d3.geo.mercator().center([121.5654,25.0330]).scale(15000) // 座標變換函式
+                    );
+
+
+                d3.select("svg").selectAll("path").data(CountyFeatures).enter().append("path").attr("d",path).attr("stroke", "red")
+      .attr("stroke-width", 15);
+                d3.select("svg").append("path")         //縣市界線
+                				.datum(topojson.mesh(topodata, topodata.objects["county"], function(a, b) { return a !== b ; }))
+                				.attr("d", path)
+                				.attr("class", "county-boundary")
+								.attr("stroke", "red")
+      							.attr("stroke-width", 5);
+
+				d3.json("town.json", function(topodata){
+					var TownFeatures = topojson.feature(topodata, topodata.objects["town"]).features;
+					for(Town in TownFeatures)
+					{
+						if(typeof gTownAgeData[TownFeatures[Town].properties["TOWNCODE"]] == 'undefined')
+						{
+							console.log("資料缺損：" + TownFeatures[Town].properties["TOWNNAME"]);
+							gTownAgeData[TownFeatures[Town].properties["TOWNCODE"]] = {104:0.0, 105:0.0, 106:0.0};
+						}
+						TownFeatures[Town].properties.ElderlyPercentage = gTownAgeData[TownFeatures[Town].properties["TOWNCODE"]][gStartYear];
+						//console.log(TownFeatures[Town].properties.ElderlyPercentage);
+					}
+                	d3.select("svg").selectAll("path")
+									.data(TownFeatures)
+									.enter()
+									.append("path")
+									.attr("d",path)
+									.attr("id", function(d){return "t"+d.properties["TOWNCODE"];})
+									.style("fill", function(d){return gColorScale(d.properties["ElderlyPercentage"])})
+									.on("mouseover", function(d)
+									{
+										d3.select("#TownName").text(d.properties["TOWNNAME"]);
+										//d3.select("#ElderlyInfo").text("老人比例："+d.properties["ElderlyPercentage"]);
+									});
+					
+                	d3.select("svg").append("path")         
+                					.datum(topojson.mesh(topodata, topodata.objects["town"], function(a, b) { return a !== b ; }))
+                					.attr("d", path)
+                					.attr("class", "town-boundary");
+					
+					UpdateTownHeatMapByTownId("65000240", gStartYear);
+				});
+            });
+			
+        }
+        </script>
+    </body>
+</html>
