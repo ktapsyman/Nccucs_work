@@ -6,6 +6,7 @@
         <script type="text/javascript" src="http://d3js.org/topojson.v1.min.js"></script>
 		<script src="http://d3js.org/queue.v1.min.js"></script>
 		<script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+		<script src="CountyLngLat.js"></script>
         <style>
 			path
 			{
@@ -23,143 +24,313 @@
 			.town-boundary
 			{
 				fill: none;
-			  	stroke: #fff;
+			  	stroke: #00f;
 			  	stroke-dasharray: 5,0;
 			  	stroke-linejoin: round;
+			}
+			
+			div.tooltip
+			{
+				position: absolute;			
+	    		text-align: left;			
+	    		width: 320px;					
+			    height: 100px;					
+			    padding: 2px;
+			    font: 16px sans-serif;		
+			    background: lightsteelblue;	
+			    border: 0px;		
+			    border-radius: 8px;			
+			    pointer-events: none;			
+			}
+			.sticky 
+			{
+  				position: fixed;
+				top: 0;
+				width: 100%;
 			}
         </style>
     </head>
     <body>
+		<!--
 		<text>平溪區老年人口比率@104：</text><text id="TxtElderlyPercentage"></text> <br>
 		<text>平溪區老年人口增加率(%)：</text><input id="ElderlyIncremental" type="number" /> <br>
-		<text>年度：</text><text id="TxtYear">104</text><input id="Year" type="range" min="104" max="124" step="1" value="104" oninput="onYearChange(this.value)" /> <br>
-		<p>資料來源：<a href="https://segis.moi.gov.tw/STAT/Web/Platform/Catalog/STAT_Catalog.aspx">社會經濟資料服務平台</a></p>
-		<div id="Info"><div id="TownName"></div><div id="ElderlyInfo"></div></div>
+		-->
+		<div class="sticky">
+			<text>年度：</text><text id="TxtYear">104</text><input id="YearBar" type="range" min="104" max="124" step="1" value="104" /> <br>
+			<p>資料來源：<a href="https://segis.moi.gov.tw/STAT/Web/Platform/Catalog/STAT_Catalog.aspx">社會經濟資料服務平台</a></p>
+		</div>
         <svg width="1600px" height="1200px" viewBox="0 0 1600 1200"></svg>
         <script>
-			var gElderlyIncrement = 0.0;//平均每年老人比率增加%數
-			var gColorScale = d3.scale.linear().domain([0, 0.5]).range(["#0f0","#f00"]);
-			var gTownAgeData = {};
-			var gStartYear = 104;
-			jQuery(function($){
-				var AgeData = null;
+			jQuery(function($)
+			{
+				var gColorScale = d3.scale.linear().domain([0, 50]).range(["#0f0","#f00"]);
+				var gCountyStatData = null;
+				var gCountyMapData = {"Features":null, "TopoData":null};
+				var gTownStatData = null;
+				var gTownMapData = {"Features":null, "TopoData":null};
+				var gCurrentScale = 1.0;
+				var gCountyProjection = d3.geo.mercator().center([119.5654,25.1330]).scale(15000); // 座標變換函式
+				var gTownProjection = d3.geo.mercator().center([119.5654,25.1330]).scale(15000); // 座標變換函式
+				var Div = d3.select("body").append("div")
+				.attr("id", "DivDetailedInfo")
+			    .attr("class", "tooltip")				
+			    .style("opacity", 0);
+				var Container = d3.select("svg").append("g").attr("id", "Container").attr("transform", "translate(0,0)scale(1,1)");
+				//var gZoomer = d3.behavior.zoom().scale(1.0).scaleExtent([1, 5]).on("zoom", Zoomed);
+
 				$(document).ready(function()
 				{
 					queue()
-						.defer(d3.csv, "104.csv")
-						.defer(d3.csv, "105.csv")
-						.defer(d3.csv, "106.csv")
-						.awaitAll(PrepareElderlyHeatmap);
-					
+						.defer(d3.csv, "104County.csv")
+						.defer(d3.csv, "105County.csv")
+						.defer(d3.csv, "106County.csv")
+						.awaitAll(PrepareCountyStatData);
+
+					queue()
+						.defer(d3.csv, "104Town.csv")
+						.defer(d3.csv, "105Town.csv")
+						.defer(d3.csv, "106Town.csv")
+						.awaitAll(PrepareTownStatData);
 				});
-				console.log(gTownAgeData);
-			});
-			
-			function onYearChange(Year)
-			{
-				d3.select("#TxtYear").text(Year);
-				UpdateTownHeatMapByTownId("65000240", Year);
-			}
-
-			function UpdateTownHeatMapByTownId(TownId, Year)
-			{
-				var YearsPassed = Year - gStartYear;
-				var ElderlyPercentage = Number(d3.select("#TxtElderlyPercentage").text()) + YearsPassed*d3.select("#ElderlyIncremental").property("value")/100.0;
-				d3.select("#t"+TownId).style("fill", gColorScale(ElderlyPercentage));
-			}
-
-			function CalcElderlyPercentage(ElderlyDep, YouthDep)
-			{
-				return ElderlyDep/(100+YouthDep);
-			}
-			
-			function PrepareElderlyHeatmap(error, data)
-			{
-				var ElderlyIncremental = 0.0;
-				for(year in data)
+				
+				$("#YearBar").on("input", function()
 				{
-					for(townData in data[year])
-					{
-						data[year][townData].A65UP_A15A64_RAT = Number(data[year][townData].A65UP_A15A64_RAT);
-						data[year][townData].A0A14_A15A65_RAT = Number(data[year][townData].A0A14_A15A65_RAT);
-						if(null == gTownAgeData[data[year][townData].TOWN_ID])
-						{
-							gTownAgeData[data[year][townData].TOWN_ID] = {};
-						}
-						gTownAgeData[data[year][townData].TOWN_ID][Number(year)+gStartYear] = CalcElderlyPercentage(data[year][townData].A65UP_A15A64_RAT, data[year][townData].A0A14_A15A65_RAT);
-						if(data[year][townData].TOWN_ID == "65000240")
-						{
-							if(year == 0)//First year will be considered as baseline
-							{
-								d3.select("#TxtElderlyPercentage").text(CalcElderlyPercentage(data[year][townData].A65UP_A15A64_RAT, data[year][townData].A0A14_A15A65_RAT));
-							}
-							else
-							{
-								ElderlyIncremental += (CalcElderlyPercentage(data[year][townData].A65UP_A15A64_RAT, data[year][townData].A0A14_A15A65_RAT) - CalcElderlyPercentage(data[year-1][townData].A65UP_A15A64_RAT, data[year-1][townData].A0A14_A15A65_RAT));
-							}
-						}
-					}
+					var Year = $(this).val();
+					d3.select("#TxtYear").text(Year);
+					/*
+					UpdateTownHeatMapByTownId("65000240", Year);
+					*/
+				});
+
+				function UpdateTownHeatMapByTownId(TownId, Year)
+				{
+					var StartYear = Number(d3.select("#YearBar").property("min"));
+					var YearsPassed = Year - StartYear;
+					//var ElderlyPercentage = Number(d3.select("#TxtElderlyPercentage").text()) + YearsPassed*d3.select("#ElderlyIncremental").property("value")/100.0;
+					//d3.select("#t"+TownId).style("fill", gColorScale(ElderlyPercentage));
 				}
-				d3.select("#ElderlyIncremental").property("value", ElderlyIncremental*100/(data.length-1));
-            	DrawTaiwan();
-			}
-		
-            function DrawTaiwan()
-			{
-                d3.json("county.json", function(topodata) {
-                this.topodata = topodata;
 
-                var CountyFeatures = topojson.feature(topodata, topodata.objects["county"]).features;
+				function CalcElderlyPercentage(ElderlyDep, YouthDep)
+				{
+					return 100*ElderlyDep/(100+YouthDep);
+				}
+				
+				function PrepareCountyMapData(topodata)
+				{
+					var StartYear = Number(d3.select("#YearBar").property("min"));
+                	var CountyFeatures = topojson.feature(topodata, topodata.objects["county"]).features;
+					for(County in CountyFeatures)
+					{
+						if(typeof gCountyStatData[CountyFeatures[County].properties["COUNTYCODE"]] == 'undefined')
+						{
+							console.log("資料缺損：" + CountyFeatures[County].properties["COUNTYNAME"]);
+							gCountyStatData[CountyFeatures[County].properties["COUNTYCODE"]] = {104:0.0, 105:0.0, 106:0.0};
+						}
+						CountyFeatures[County].properties.ElderlyPercentage = gCountyStatData[CountyFeatures[County].properties["COUNTYCODE"]][StartYear];
+					}
+					gCountyMapData["Features"] = CountyFeatures;
+					gCountyMapData["TopoData"] = topodata;
+            		DrawCounties();
+				}
 
-                var path = d3.geo.path().projection( // 路徑產生器
-                    	d3.geo.mercator().center([121.5654,25.0330]).scale(15000) // 座標變換函式
-                    );
+				function PrepareCountyStatData(error, data)
+				{
+					gCountyStatData = PrepareStatData(error, data, "County");
+                	d3.json("county.json", PrepareCountyMapData);
+				}
 
+				function PrepareTownMapData(topodata)
+				{
+					var StartYear = Number(d3.select("#YearBar").property("min"));
 
-                d3.select("svg").selectAll("path").data(CountyFeatures).enter().append("path").attr("d",path).attr("stroke", "red")
-      .attr("stroke-width", 15);
-                d3.select("svg").append("path")         //縣市界線
-                				.datum(topojson.mesh(topodata, topodata.objects["county"], function(a, b) { return a !== b ; }))
-                				.attr("d", path)
-                				.attr("class", "county-boundary")
-								.attr("stroke", "red")
-      							.attr("stroke-width", 5);
-
-				d3.json("town.json", function(topodata){
 					var TownFeatures = topojson.feature(topodata, topodata.objects["town"]).features;
 					for(Town in TownFeatures)
 					{
-						if(typeof gTownAgeData[TownFeatures[Town].properties["TOWNCODE"]] == 'undefined')
+						if(typeof gTownStatData[TownFeatures[Town].properties["TOWNCODE"]] == 'undefined')
 						{
 							console.log("資料缺損：" + TownFeatures[Town].properties["TOWNNAME"]);
-							gTownAgeData[TownFeatures[Town].properties["TOWNCODE"]] = {104:0.0, 105:0.0, 106:0.0};
+							gTownStatData[TownFeatures[Town].properties["TOWNCODE"]] = {104:0.0, 105:0.0, 106:0.0};
 						}
-						TownFeatures[Town].properties.ElderlyPercentage = gTownAgeData[TownFeatures[Town].properties["TOWNCODE"]][gStartYear];
-						//console.log(TownFeatures[Town].properties.ElderlyPercentage);
+						TownFeatures[Town].properties.ElderlyPercentage = gTownStatData[TownFeatures[Town].properties["TOWNCODE"]][StartYear];
 					}
-                	d3.select("svg").selectAll("path")
+					gTownMapData["Features"] = TownFeatures;
+					gTownMapData["TopoData"] = topodata;
+				}
+				
+				function PrepareTownStatData(error, data)
+				{
+					gTownStatData = PrepareStatData(error, data, "Town");
+					d3.json("town.json", PrepareTownMapData);
+				}
+				
+				function PrepareStatData(error, data, sectorType)
+				{
+					var StartYear = Number(d3.select("#YearBar").property("min"));
+					var AgeData = {}
+					var Id = sectorType == "County" ? "COUNTY_ID" : "TOWN_ID";
+					for(year in data)
+					{
+						for(sector in data[year])
+						{
+							data[year][sector].A65UP_A15A64_RAT = Number(data[year][sector].A65UP_A15A64_RAT);
+							data[year][sector].A0A14_A15A65_RAT = Number(data[year][sector].A0A14_A15A65_RAT);
+							if(null == AgeData[data[year][sector][Id]])
+							{
+								AgeData[data[year][sector][Id]] = {};
+							}
+							AgeData[data[year][sector][Id]][Number(year)+StartYear] = Round10(CalcElderlyPercentage(data[year][sector].A65UP_A15A64_RAT, data[year][sector].A0A14_A15A65_RAT));
+						}
+					}
+					for(data in AgeData)
+					{
+						AgeData[data].AvgElderlyIncremental = Round10((AgeData[data][106]-AgeData[data][104])/3.0);
+					}
+					return AgeData;
+				}
+
+            	function DrawCounties()
+				{
+					var StartYear = Number(d3.select("#YearBar").property("min"));
+					
+               		var CountyFeatures = gCountyMapData["Features"];
+					var TopoData =  gCountyMapData["TopoData"];
+               		var path = d3.geo.path().projection(gCountyProjection);
+					
+               		d3.select("#Container").selectAll("path")
+									.data(CountyFeatures)
+									.enter()
+									.append("path")
+									.attr("d",path)
+									.attr("stroke", "green")
+     								.attr("stroke-width", 5)
+									.attr("id", function(d){return "c"+d.properties["COUNTYCODE"];})
+									.attr("class", "county-area")
+									.style("fill", /*function(d){return gColorScale(d.properties["ElderlyPercentage"])}*/"black")
+									.on("click", OnCountyClicked)
+									.on("mousemove", function(d)
+									{
+										d3.select("#DivDetailedInfo")
+											.transition()
+											.duration(100)
+											.style("opacity", 0.9);
+											d3.select("#DivDetailedInfo")
+											.html("地區：" + d.properties["COUNTYNAME"] + "<br/>" + "老年人口比例@" + StartYear + ":" + d.properties["ElderlyPercentage"] + "%<br/>" + "平均老年人口增加率：" + gCountyStatData[d.properties["COUNTYCODE"]].AvgElderlyIncremental + "%<br/>")
+											.style("left", (d3.event.pageX) + "px")
+						            	    .style("top", (d3.event.pageY - 28) + "px");
+									})
+									.on("mouseout", function()
+									{
+										d3.select("#DivDetailedInfo")
+											.style("opacity", 0.0);
+									});
+                		d3.select("#Container").append("path")         //縣市界線
+              	  					.datum(topojson.mesh(TopoData, TopoData.objects["county"], function(a, b) { return a !== b ; }))
+   	            					.attr("d", path)
+       	        					.attr("class", "county-boundary")
+   									.attr("stroke-width", 2);
+	       		}
+				
+				function DrawTowns(CountyCode)
+				{
+					var StartYear = Number(d3.select("#YearBar").property("min"));
+           			var TownFeatures = gTownMapData["Features"];//.filter( d => d.properties["COUNTYCODE"] == CountyCode);
+					var TopoData =  gTownMapData["TopoData"];//.filter( d => {console.log(d);return true});
+   	    	      	var path = d3.geo.path().projection(gTownProjection);
+               		d3.select("#Container").selectAll("path")
 									.data(TownFeatures)
 									.enter()
 									.append("path")
 									.attr("d",path)
 									.attr("id", function(d){return "t"+d.properties["TOWNCODE"];})
-									.style("fill", function(d){return gColorScale(d.properties["ElderlyPercentage"])})
-									.on("mouseover", function(d)
+									.style("fill", function(d){
+												if(d.properties["COUNTYCODE"] != CountyCode)
+												{
+													return 0;
+												}
+												return gColorScale(d.properties["ElderlyPercentage"])
+											})
+									.on("click", OnTownClicked)
+									.on("mousemove", function(d)
 									{
-										d3.select("#TownName").text(d.properties["TOWNNAME"]);
-										//d3.select("#ElderlyInfo").text("老人比例："+d.properties["ElderlyPercentage"]);
+										d3.select("#DivDetailedInfo")
+											.transition()
+											.duration(200)
+											.style("opacity", 0.9);
+
+										d3.select("#DivDetailedInfo")
+											.html("地區：" + d.properties["TOWNNAME"] + "<br/>" + "目前老人比例：TODO" + "<br/>" + "老年人口增加率：TODO" + "<br/>")
+											.style("left", (d3.event.pageX) + "px")
+							                .style("top", (d3.event.pageY - 28) + "px");
+									})
+									.on("mouseout", function()
+									{
+										d3.select("#DivDetailedInfo")
+											.style("opacity", 0.0);
 									});
 					
-                	d3.select("svg").append("path")         
-                					.datum(topojson.mesh(topodata, topodata.objects["town"], function(a, b) { return a !== b ; }))
+                	d3.select("#Container").append("path")
+                					.datum(topojson.mesh(TopoData, TopoData.objects["town"], function(a, b) { return a !== b && a.properties.COUNTYCODE==CountyCode; }))
                 					.attr("d", path)
-                					.attr("class", "town-boundary");
+                					.attr("class", "town-boundary")
 					
-					UpdateTownHeatMapByTownId("65000240", gStartYear);
-				});
-            });
-			
-        }
+				}
+				
+				function getTransform(node, xScale) 
+				{
+					var containerBBox = d3.select("#Container").node().getBBox();
+					vx = containerBBox.x;		// container x co-ordinate
+  					vy = containerBBox.y;		// container y co-ordinate
+					vw = containerBBox.width;	// container width
+					vh = containerBBox.height;	// container height
+
+ 					var bbox = node.node().getBBox();
+					var bx = bbox.x;
+  					var by = bbox.y;
+  					var bw = bbox.width;
+  					var bh = bbox.height;
+  					var tx = -bx*xScale + vx + vw/2 - bw*xScale/2;
+  					var ty = -by*xScale + vy + vh/2 - bh*xScale/2;
+  					return {translate: [tx, ty], scale: xScale}
+				}
+				
+				function OnCountyClicked(d)
+				{
+					
+					if(1.0 == gCurrentScale)
+					{
+						DrawTowns(d.properties.COUNTYCODE);
+						gCurrentScale = 2.5;
+						Node = d3.select(this);
+						var Transform = getTransform(Node, 2.5);
+						d3.select("#Container").transition().duration(500).attr("transform", "translate("+Transform.translate + ")scale(" + Transform.scale + ")");
+						d3.selectAll(".county-area").on("mousemove", null);
+					}
+					else
+					{
+						gCurrentScale = 1.0;
+						ResetMap();
+					}
+					
+				}
+				
+				function OnTownClicked()
+				{
+					ResetMap();
+				}
+
+				function ResetMap()
+				{
+					d3.selectAll("path").remove();
+					d3.select("#Container").transition().duration(500).attr("transform", "translate(0, 0)scale(1, 1)");
+					DrawCounties();
+				}
+
+				function Round10(Number)
+				{
+					return Math.round( Number * 10 ) / 10;
+				}
+			});
+		
         </script>
     </body>
 </html>
