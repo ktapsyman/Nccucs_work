@@ -63,7 +63,7 @@
         <script>
 			jQuery(function($)
 			{
-				var gColorScale = d3.scale.linear().domain([0, 50]).range(["#0f0","#f00"]);
+				//var gColorScale = //d3.scale.linear().domain([0, 50]).range(["#0f0","#f00"]);
 				var gCountyStatData = null;
 				var gCountyMapData = {"Features":null, "TopoData":null};
 				var gTownStatData = null;
@@ -116,6 +116,26 @@
 					}
 				});
 				
+				function GetColorScale(ElderlyRate)
+				{
+					if( ElderlyRate < 12.5 )
+					{
+						return d3.scale.linear().domain([0.0, 12.5]).range(['#0F4C3A','#86C166'])(ElderlyRate);
+					}
+					else if( ElderlyRate < 25 )
+					{
+						return gColorScale1 = d3.scale.linear().domain([12.5, 25]).range(['#86C166','#FBE251'])(ElderlyRate);
+					}
+					else if( ElderlyRate < 37.5 )
+					{
+						return d3.scale.linear().domain([25, 37.5]).range(['#FBE251','#F05E1C'])(ElderlyRate);
+					}
+					else
+					{
+						return d3.scale.linear().domain([37.5, 50]).range(['#F05E1C','#E83015'])(ElderlyRate);
+					}
+				}
+
 				function UpdateHeatMapById(Id, Year, AreaData)
 				{
 					var ElderlyPercentage = 0.0;
@@ -131,7 +151,7 @@
 						ElderlyPercentage = AreaData[106] + YearsPassed*AreaData.AvgElderlyIncremental;
 					//var ElderlyPercentage = Number(d3.select("#TxtElderlyPercentage").text()) + YearsPassed*d3.select("#ElderlyIncremental").property("value")/100.0;
 					}
-					d3.select("#"+Id).style("fill", gColorScale(ElderlyPercentage));
+					d3.select("#"+Id).style("fill", GetColorScale(ElderlyPercentage));
 				}
 
 				function CalcElderlyPercentage(ElderlyDep, YouthDep)
@@ -233,7 +253,7 @@
      								.attr("stroke-width", 5)
 									.attr("id", function(d){return "c"+d.properties["COUNTYCODE"];})
 									.attr("class", "county-area")
-									.style("fill", function(d){return gColorScale(d.properties["ElderlyPercentage"])})
+									.style("fill", function(d){return GetColorScale(d.properties["ElderlyPercentage"])})
 									.on("click", OnCountyClicked)
 									.on("mousemove", function(d)
 									{
@@ -276,7 +296,7 @@
 												{
 													return 0;
 												}
-												return gColorScale(d.properties["ElderlyPercentage"])
+												return GetColorScale(d.properties["ElderlyPercentage"])
 											})
 									.on("click", OnTownClicked)
 									.on("mousemove", function(d)
