@@ -47,6 +47,7 @@
   				position: fixed;
 				top: 0;
 				width: 100%;
+				float:right;
 			}
         </style>
     </head>
@@ -63,7 +64,6 @@
         <script>
 			jQuery(function($)
 			{
-				//var gColorScale = //d3.scale.linear().domain([0, 50]).range(["#0f0","#f00"]);
 				var gCountyStatData = null;
 				var gCountyMapData = {"Features":null, "TopoData":null};
 				var gTownStatData = null;
@@ -96,7 +96,6 @@
 				$("#YearBar").on("input", function()
 				{
 					var Year = $(this).val();
-					console.log(Year);
 					d3.select("#TxtYear").text(Year);
 					if(null == gCurrentCounty)
 					{
@@ -149,11 +148,11 @@
 						var StartYear = 106;
 						var YearsPassed = Year - StartYear;
 						ElderlyPercentage = AreaData[106] + YearsPassed*AreaData.AvgElderlyIncremental;
-					//var ElderlyPercentage = Number(d3.select("#TxtElderlyPercentage").text()) + YearsPassed*d3.select("#ElderlyIncremental").property("value")/100.0;
 					}
-					d3.select("#"+Id).style("fill", GetColorScale(ElderlyPercentage));
+					var AreaName = d3.select("#"+Id).attr("data-AreaName");
+					d3.select("#"+Id).style("fill", GetColorScale(ElderlyPercentage)).on("mousemove", function(){OnAreaMouseMove(AreaName, Year, ElderlyPercentage, AreaData.AvgElderlyIncremental);});
 				}
-
+				
 				function CalcElderlyPercentage(ElderlyDep, YouthDep)
 				{
 					return 100*ElderlyDep/(100+YouthDep);
@@ -232,7 +231,7 @@
 					for(Data in AgeData)
 					{
 						AgeData[Data].AvgElderlyIncremental = Round10((AgeData[Data][106]-AgeData[Data][104])/3.0);
-						//console.log(AgeData[Data]);
+						AgeData[Data].ETLimitingArea = Math.round(106+(50-AgeData[Data][106])/AgeData[Data].AvgElderlyIncremental);
 					}
 					return AgeData;
 				}
@@ -253,29 +252,29 @@
      								.attr("stroke-width", 5)
 									.attr("id", function(d){return "c"+d.properties["COUNTYCODE"];})
 									.attr("class", "county-area")
-									.style("fill", function(d){return GetColorScale(d.properties["ElderlyPercentage"])})
+									.attr("data-AreaName", function(d){return d.properties["COUNTYNAME"];})
+									.attr("data-ETL", function(d){return gCountyStatData[d.properties["COUNTYCODE"]].ETLimitingArea;})
+									//.attr("data-ElderlyPercentage", function(d){return d.properties["ElderlyPercentage"]})
+									//.attr("data-ElderlyIncremental", function(d){return gCountyStatData[d.properties["COUNTYCODE"]].AvgElderlyIncremental;})
+									.style("fill", function(d){return GetColorScale(d.properties["ElderlyPercentage"]);})
 									.on("click", OnCountyClicked)
 									.on("mousemove", function(d)
 									{
-										d3.select("#DivDetailedInfo")
-											.transition()
-											.duration(100)
-											.style("opacity", 0.9);
-											d3.select("#DivDetailedInfo")
-											.html("地區：" + d.properties["COUNTYNAME"] + "<br/>" + "老年人口比例@" + StartYear + ":" + d.properties["ElderlyPercentage"] + "%<br/>" + "平均老年人口增加率：" + gCountyStatData[d.properties["COUNTYCODE"]].AvgElderlyIncremental + "%<br/>")
-											.style("left", (d3.event.pageX) + "px")
-						            	    .style("top", (d3.event.pageY - 28) + "px");
+										if(null != gCurrentCounty)
+											return;
+										OnAreaMouseMove(d.properties["COUNTYNAME"], StartYear, d.properties["ElderlyPercentage"], gCountyStatData[d.properties["COUNTYCODE"]].AvgElderlyIncremental, gCountyStatData[d.properties["COUNTYCODE"]].ETLimitingArea);
 									})
 									.on("mouseout", function()
 									{
 										d3.select("#DivDetailedInfo")
 											.style("opacity", 0.0);
 									});
-                		d3.select("#Container").append("path")         //縣市界線
+                	d3.select("#Container").append("path")         //縣市界線
               	  					.datum(topojson.mesh(TopoData, TopoData.objects["county"], function(a, b) { return a !== b ; }))
    	            					.attr("d", path)
        	        					.attr("class", "county-boundary")
    									.attr("stroke-width", 2);
+					DrawLimitingTowns();
 	       		}
 				
 				function DrawTowns(CountyCode)
@@ -284,13 +283,15 @@
            			var TownFeatures = gTownMapData["Features"];//.filter( d => d.properties["COUNTYCODE"] == CountyCode);
 					var TopoData =  gTownMapData["TopoData"];//.filter( d => {console.log(d);return true});
    	    	      	var path = d3.geo.path().projection(gTownProjection);
-               		d3.select("#Container").selectAll("path")
+               		d3.select("#Container").append("g").attr("class", "TownContainer").selectAll("path")
 									.data(TownFeatures)
 									.enter()
 									.append("path")
 									.attr("d",path)
 									.attr("class", "town-area")
 									.attr("id", function(d){return "t"+d.properties["TOWNCODE"];})
+									.attr("data-AreaName", function(d){return d.properties["TOWNNAME"];})
+									.attr("data-ETL", function(d){return gTownStatData[d.properties["TOWNCODE"]].ETLimitingArea;})
 									.style("fill", function(d){
 												if(d.properties["COUNTYCODE"] != CountyCode)
 												{
@@ -301,15 +302,7 @@
 									.on("click", OnTownClicked)
 									.on("mousemove", function(d)
 									{
-										d3.select("#DivDetailedInfo")
-											.transition()
-											.duration(200)
-											.style("opacity", 0.9);
-
-										d3.select("#DivDetailedInfo")
-											.html("地區：" + d.properties["TOWNNAME"] + "<br/>" + "目前老人比例：TODO" + "<br/>" + "老年人口增加率：TODO" + "<br/>")
-											.style("left", (d3.event.pageX) + "px")
-							                .style("top", (d3.event.pageY - 28) + "px");
+										OnAreaMouseMove(d.properties["TOWNNAME"], StartYear, d.properties["ElderlyPercentage"], gTownStatData[d.properties["TOWNCODE"]].AvgElderlyIncremental, gTownStatData[d.properties["TOWNCODE"]].ETLimitingArea);
 									})
 									.on("mouseout", function()
 									{
@@ -318,12 +311,54 @@
 									});
 					
                 	d3.select("#Container").append("path")
-                					.datum(topojson.mesh(TopoData, TopoData.objects["town"], function(a, b) { return a !== b && a.properties.COUNTYCODE==CountyCode; }))
+                					.datum(topojson.mesh(TopoData, TopoData.objects["town"], function(a, b) { return a !== b &&( a.properties.COUNTYCODE==CountyCode || b.properties.COUNTYCODE==CountyCode); }))
                 					.attr("d", path)
                 					.attr("class", "town-boundary")
 					
+					DrawLimitingTowns();
 				}
 				
+				function DrawLimitingTowns()
+				{
+					d3.selectAll("circle").remove();
+					var LimitingTowns = [
+						{"TownCode":"65000240", "Name":"新北市平溪區", "Coord":[121.757838, 25.029816]},
+						{"TownCode":"64000220", "Name":"高雄市田寮區", "Coord":[120.394171, 22.862443]},
+						{"TownCode":"67000260", "Name":"台南市左鎮區", "Coord":[120.412921, 23.027662]},
+						{"TownCode":"10005170", "Name":"苗栗縣獅潭鄉", "Coord":[120.921725, 24.523059]},
+						{"TownCode":"10004110", "Name":"新竹縣峨眉鄉", "Coord":[121.011899, 24.679068]},
+						{"TownCode":"67000300", "Name":"台南市龍崎區", "Coord":[120.386899, 22.954690]},
+						{"TownCode":"10010080", "Name":"嘉義縣六腳鄉", "Coord":[120.262509, 23.512844]},
+						{"TownCode":"65000250", "Name":"新北市雙溪區", "Coord":[121.837193, 25.002385]},
+						{"TownCode":"10010110", "Name":"嘉義縣鹿草鄉", "Coord":[120.306105, 23.410751]},
+						{"TownCode":"10009200", "Name":"雲林縣水林鄉", "Coord":[120.240609, 23.561419]},
+					];
+					d3.select("#Container")
+						.selectAll("circle")
+      					.data(LimitingTowns)
+    					.enter()
+						.append("circle")
+ 					    .attr("r",  "7px")
+      					.attr("cx", function(d) { return gCountyProjection(d.Coord)[0];})
+      					.attr("cy", function(d) { return gCountyProjection(d.Coord)[1];})
+      					.style("fill", "yellow")
+						.on("mousemove", function(d)
+						{
+							d3.select("#DivDetailedInfo")
+								.style("opacity", 0.9);
+
+							d3.select("#DivDetailedInfo")
+								.html("地區：" + d.Name + "<br/>" + "老年人口比例@民國106年:" + gTownStatData[d.TownCode]["106"] + "%<br/>" + "平均老年人口增加率：" + gTownStatData[d.TownCode].AvgElderlyIncremental + "%<br/>" + "預計於民國" + gTownStatData[d.TownCode].ETLimitingArea + "年成為極限村落/地區")
+								.style("left", (d3.event.pageX) + "px")
+					    		.style("top", (d3.event.pageY - 28) + "px");
+						})
+						.on("mouseout", function(d)
+						{
+							d3.select("#DivDetailedInfo")
+								.style("opacity", 0.0);
+						});
+				}
+
 				function getTransform(node, xScale) 
 				{
 					var containerBBox = d3.select("#Container").node().getBBox();
@@ -340,6 +375,18 @@
   					var tx = -bx*xScale + vx + vw/2 - bw*xScale/2;
   					var ty = -by*xScale + vy + vh/2 - bh*xScale/2;
   					return {translate: [tx, ty], scale: xScale}
+				}
+				
+				function OnAreaMouseMove(Area, DataYear, ElderlyPercentage, ElderlyIncremental, ETLimitingArea)
+				{
+					d3.select("#DivDetailedInfo")
+						.style("opacity", 0.9);
+
+					d3.select("#DivDetailedInfo")
+						.html(MakeDetailInfo(Area, DataYear, ElderlyPercentage, ElderlyIncremental, ETLimitingArea))
+						.style("left", (d3.event.pageX) + "px")
+					    .style("top", (d3.event.pageY - 28) + "px");
+
 				}
 				
 				function OnCountyClicked(d)
@@ -369,10 +416,16 @@
 				{
 					gCurrentCounty = null;
 					d3.selectAll("path").remove();
+					d3.selectAll(".TownContainer").remove();
 					d3.select("#Container").transition().duration(500).attr("transform", "translate(0, 0)scale(1, 1)");
 					DrawCounties();
 				}
-
+				
+				function MakeDetailInfo(Area, DataYear, ElderlyPercentage, ElderlyIncremental, ETLimitingArea)
+				{
+					return "地區：" + Area + "<br/>" + "老年人口比例@民國" + DataYear + "年:" + ElderlyPercentage + "%<br/>" + "平均老年人口增加率：" + ElderlyIncremental + "%<br/>" + "預計於民國" + ETLimitingArea + "年成為極限村落/地區";
+				}
+				
 				function Round10(Number)
 				{
 					return Math.round( Number * 10 ) / 10;
