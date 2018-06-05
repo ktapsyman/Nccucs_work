@@ -1,13 +1,16 @@
 import sys
 
 import numpy as np
+from scipy import ndimage
 import cv2
 
-def HarrisDetector(Img, WindowSize=3, K=0.05, Threshold=10000):
-	CornerList = []
+def HarrisDetector(Img, WindowSize=3, K=0.05):
 		
 	Img = cv2.cvtColor(Img, cv2.COLOR_BGR2GRAY)
-	Dy, Dx = np.gradient(Img)
+	CornerList = np.zeros(Img.shape)
+	#Dy, Dx = np.gradient(Img)
+	Dx = cv2.Sobel(Img, cv2.CV_64F, 1, 0, ksize=3)
+	Dy = cv2.Sobel(Img, cv2.CV_64F, 0, 1, ksize=3)
 	Ixx = Dx**2
 	Ixy = Dx*Dy
 	Iyy = Dy**2
@@ -23,26 +26,20 @@ def HarrisDetector(Img, WindowSize=3, K=0.05, Threshold=10000):
 
 			Det = Sxx*Syy-Sxy**2
 			Response = Det - K*((Sxx+Syy)**2)
-			if Response > Threshold:
-				CornerList.append((Y, X))
+			CornerList[Y, X] = Response
 
 	return CornerList
-
-def DrawCorners(Img, CornerList):
-	for Corner in CornerList:
-		cv2.circle(Img, (Corner[1], Corner[0]), 3, (0, 0, 255), 1)
-	return 
 
 def Main():
 	Img = cv2.imread(sys.argv[1])
 	if Img is None:
 		print("Fail to read image")
 		exit()
-	print(Img.shape)
-	cv2.imshow("OriginalImg", Img)
 
+	cv2.imshow("OriginalImg", Img)
+	
 	CornerList = HarrisDetector(Img.copy())
-	DrawCorners(Img, CornerList)
+	Img[CornerList>0.01*CornerList.max()] = [0, 0, 255]
 	
 	cv2.imshow("Corners", Img)
 	
