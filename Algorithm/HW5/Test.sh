@@ -1,2 +1,3 @@
-gcc HW2.c -Wall -o HW2
-cat Data.txt | ./HW2
+gcc HW5.c -Wall -o HW5
+cat Data.txt | ./HW5
+rm HW5
