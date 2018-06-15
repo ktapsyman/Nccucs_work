@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <limits.h>
 
 #ifndef SAFE_FREE  
 #define SAFE_FREE(Ptr) if(Ptr){\
@@ -27,22 +29,22 @@ enum
 	MRT = 2
 };
 
-typedef struct Route
-{
-	int RouteId;
-	int DestId;
-	int LastTransportType;
-	int TravelTime;
-	struct Route *Next;
-	
-} Route;
-
 typedef struct Stop
 {
 	int StopId;
-	Route *RouteList;
+	bool Visited;
+	struct Route *RouteList;
 	struct Stop *Next;
 } Stop;
+
+typedef struct Route
+{
+	int RouteId;
+	Stop *Dest;
+	int LastTransportType;
+	int TravelTime;
+	struct Route *Next;
+} Route;
 
 typedef struct Query
 {
@@ -51,22 +53,36 @@ typedef struct Query
 	struct Query *Next;
 } Query;
 
+typedef struct RouteStackElement
+{
+	Route *RouteElement;
+	struct RouteStackElement *Prev;
+} RouteStackElement;
+
 Stop *GetTransportInfo();
 Stop *CreateStop(int StopId);
 Stop *AppendStop(Stop *Head, Stop *NewStop);
 Stop *SearchStopById(Stop *Head, int StopId);
 void CleanStops(Stop *Head);
+void ResetStopState(Stop *Head);
 
-Route *CreateRoute(int RouteId, int DestId, int LastTransportType, int TravelTime);
+Route *CreateRoute(int RouteId, Stop *Dest, int LastTransportType, int TravelTime);
 Route *AppendRoute(Route *Head, Route *NewRoute);
 Route *SearchRouteByDestId(Route *Head, int DestId);
 void CleanRoutes(Route *Head);
-void UpdateRoutes(Stop *Stops, int RouteId, int Type, int FromId, int DestId, int TravelTime);
 void DumpRoutes(int StopId, Route *Head);
 
 Query *AppendQuery(Query *Head, Query *NewQuery);
 Query *CreateQuery(int FromId, int DestId);
 void CleanQueries(Query *Head);
+
+RouteStackElement *CreateStackElement(Route *RouteElement);
+RouteStackElement *Push(RouteStackElement *Head, RouteStackElement *NewElement);
+RouteStackElement *Pop(RouteStackElement **Head);
+
+void DFS(Stop *From, int DestId, RouteStackElement *RouteStack, int *MinTravelTime);
+bool ContainsCycle(Stop *Stops);
+
 
 int main(int argc, char **argv)
 {
@@ -77,35 +93,39 @@ int main(int argc, char **argv)
 		printf("-1\n");
 		return 0;
 	}
+	
 	Query *Current = Queries;
 	while(Current)
 	{
+		RouteStackElement *Stack = NULL;
+		int MinTravelTime = INT_MAX;
 		if(Current->FromId == Current->DestId)
 		{
 			printf("0\n");
 			Current = Current->Next;
 			continue;
 		}
-
-		Stop *TargetStop = SearchStopById(Stops, Current->FromId);
-		if(!TargetStop)
+		
+		Stop *From = SearchStopById(Stops, Current->FromId);
+		if(!From)
 		{
 			printf("-1\n");
+			Current = Current->Next;
+			continue;
 		}
-
-		Route *TargetRoute = SearchRouteByDestId(TargetStop->RouteList, Current->DestId);
-		if(!TargetRoute)
-		{
+		
+		DFS(From, Current->DestId, Stack, &MinTravelTime);
+		
+		if(MinTravelTime == INT_MAX)
 			printf("-1\n");
-		}
 		else
-		{
-			printf("%d\n", TargetRoute->TravelTime);
-		}
-
+			printf("%d\n", MinTravelTime);
+		
+		ResetStopState(Stops);
+		
 		Current = Current->Next;
 	}
-	
+
 	CleanStops(Stops);
 	CleanQueries(Queries);
 	return 0;
@@ -173,6 +193,7 @@ Stop *GetTransportInfo(Query **Queries)
 				{
 					Stop *NewStop = CreateStop(FromId);
 					Stops = AppendStop(Stops, NewStop);
+					From = NewStop;
 				}
 
 				Stop *Dest = SearchStopById(Stops, DestId);
@@ -180,15 +201,17 @@ Stop *GetTransportInfo(Query **Queries)
 				{
 					Stop *NewStop = CreateStop(DestId);
 					Stops = AppendStop(Stops, NewStop);
+					Dest = NewStop;
 				}
-				UpdateRoutes(Stops, RouteId, Type, FromId, DestId, TravelTime);
+				Route *NewRoute = CreateRoute(RouteId, Dest, Type, TravelTime);
+				From->RouteList = AppendRoute(From->RouteList, NewRoute);
 			}
 			RouteId++;
 			
 		}
 		else
 		{
-			printf("Stop error\n");
+			printf("2Stop error\n");
 		}
 	}
 	return Stops;
@@ -205,6 +228,7 @@ Stop *CreateStop(int StopId)
 
 	NewStop->Next = NULL;
 	NewStop->StopId = StopId;
+	NewStop->Visited = false;
 	NewStop->RouteList = NULL;
 
 	return NewStop;
@@ -248,6 +272,18 @@ Stop *SearchStopById(Stop *Head, int StopId)
 	return NULL;
 }
 
+void ResetStopState(Stop *Head)
+{
+	if(!Head)
+		return;
+	Stop *Current = Head;
+	while(Current)
+	{
+		Current->Visited = false;
+		Current = Current->Next;
+	}
+}
+
 void CleanStops(Stop *Head)
 {
 	if(!Head)
@@ -257,7 +293,7 @@ void CleanStops(Stop *Head)
 	SAFE_FREE(Head);
 }
 
-Route *CreateRoute(int RouteId, int DestId, int LastTransportType, int TravelTime)
+Route *CreateRoute(int RouteId, Stop *Dest, int LastTransportType, int TravelTime)
 {
 	Route *NewRoute = (Route *)malloc(sizeof(Route));
 	if(!NewRoute)
@@ -267,7 +303,7 @@ Route *CreateRoute(int RouteId, int DestId, int LastTransportType, int TravelTim
 	}
 
 	NewRoute->RouteId = RouteId;
-	NewRoute->DestId = DestId;
+	NewRoute->Dest = Dest;
 	NewRoute->LastTransportType = LastTransportType;
 	NewRoute->TravelTime = TravelTime;
 	NewRoute->Next = NULL;
@@ -302,7 +338,7 @@ Route *SearchRouteByDestId(Route *Head, int DestId)
 	Route *Current = Head;
 	while(Current)
 	{
-		if(Current->DestId == DestId)
+		if(Current->Dest->StopId == DestId)
 			return Current;
 		Current = Current->Next;
 	}
@@ -317,105 +353,12 @@ void CleanRoutes(Route *Head)
 	SAFE_FREE(Head);
 }
 
-void UpdateRoutes(Stop *Stops, int RouteId, int Type, int FromId, int DestId, int TravelTime)
-{
-	Stop *CurrentStop = Stops;
-	while(CurrentStop)
-	{
-		Route *Connection = SearchRouteByDestId(CurrentStop->RouteList, FromId);
-		Route *OldRoute = SearchRouteByDestId(CurrentStop->RouteList, DestId);
-		if( !Connection )
-		{
-			if(CurrentStop->StopId == FromId)
-			{
-				Route *NewRoute = CreateRoute(RouteId, DestId, Type, TravelTime);
-				CurrentStop->RouteList = AppendRoute(CurrentStop->RouteList, NewRoute);
-			}
-			CurrentStop = CurrentStop->Next;
-			continue;
-		}
-		int TotalTravelTime = TravelTime + Connection->TravelTime;
-		if( Connection->RouteId != RouteId )
-		{
-			if( BUS == Type )
-			{
-				TotalTravelTime += 5;
-			}
-			else if( MRT == Type )
-			{
-				TotalTravelTime += 10;
-			}
-			else
-			{
-				printf("Something went badly wrong\n");
-			}
-		}
-		
-		if( OldRoute )
-		{
-			if( OldRoute->TravelTime > TotalTravelTime )
-			{
-				OldRoute->RouteId = RouteId;
-				OldRoute->LastTransportType = Type;
-				OldRoute->TravelTime = TotalTravelTime;
-			}
-		}
-		else
-		{
-			Route *NewRoute = CreateRoute(RouteId, DestId, Type, TotalTravelTime);
-			CurrentStop->RouteList = AppendRoute(CurrentStop->RouteList, NewRoute);
-		}
-		CurrentStop = CurrentStop->Next;
-	}
-	Stop *StrechStop = SearchStopById(Stops, DestId);
-	if(StrechStop && StrechStop->RouteList)
-	{
-		Route *CurrentRoute = StrechStop->RouteList;
-		while(CurrentRoute)
-		{
-			Stop *CurrentStop = Stops;
-			while(CurrentStop)
-			{	
-				Route *FromRoute = SearchRouteByDestId(CurrentStop->RouteList, StrechStop->StopId);
-				Route *DestRoute = SearchRouteByDestId(CurrentStop->RouteList, CurrentRoute->DestId);
-				if( FromRoute && DestRoute )
-				{
-					int NewTravelTime = FromRoute->TravelTime + CurrentRoute->TravelTime;
-					if(CurrentRoute->RouteId != FromRoute->RouteId)
-					{
-						if(CurrentRoute->LastTransportType == BUS)
-						{
-							NewTravelTime += 5;
-						}
-						else if(CurrentRoute->LastTransportType == MRT)
-						{
-							NewTravelTime += 10;
-						}
-						else
-						{
-							printf("Something went badly wrong\n");
-						}
-					}
-					if(DestRoute->TravelTime > NewTravelTime)
-					{
-						DestRoute->TravelTime = NewTravelTime;
-						DestRoute->LastTransportType = CurrentRoute->LastTransportType;
-						DestRoute->RouteId = CurrentRoute->RouteId;
-					}
-				}
-				CurrentStop = CurrentStop->Next;
-			}
-			CurrentRoute = CurrentRoute->Next;
-		}
-	}
-}
-
 void DumpRoutes(int StopId, Route *Head)
 {
 	Route *Current = Head;
 	while(Current)
 	{
-		printf("From : %d to %d will cost %d on %s and RouteId is %d\n", StopId, Current->DestId, Current->TravelTime, Current->LastTransportType == BUS? "BUS":"MRT", Current->RouteId);
+		printf("From : %d to %d will cost %d on %s and RouteId is %d\n", StopId, Current->Dest->StopId, Current->TravelTime, Current->LastTransportType == BUS? "BUS":"MRT", Current->RouteId);
 		Current = Current->Next;
 	}
 }
@@ -461,5 +404,97 @@ void CleanQueries(Query *Head)
 		return;
 	CleanQueries(Head->Next);
 	SAFE_FREE(Head);
+}
+
+void DFS(Stop *From, int DestId, RouteStackElement *RouteStack, int *MinTravelTime)
+{
+	if(!From || From->Visited)
+	{
+		return;
+	}
+	From->Visited = true;
+	Route *CurrentRoute = From->RouteList;
+	while(CurrentRoute && !CurrentRoute->Dest->Visited)
+	{
+		RouteStack = Push(RouteStack, CreateStackElement(CurrentRoute));
+		if( CurrentRoute->Dest->StopId == DestId )
+		{
+			RouteStackElement *CurrentStackElement = RouteStack;
+			int CurrentTransportType = CurrentStackElement->RouteElement->LastTransportType;
+			int CurrentRouteId = CurrentStackElement->RouteElement->RouteId;
+			int TotalTravelTime = 0;//CurrentStackElement->RouteElement->TravelTime;
+			while(CurrentStackElement)
+			{
+				TotalTravelTime += CurrentStackElement->RouteElement->TravelTime;
+
+				if(CurrentStackElement->RouteElement->RouteId != CurrentRouteId)
+				{
+					if(CurrentTransportType == BUS)
+					{
+						TotalTravelTime += 5;
+					}
+					else
+					{
+						TotalTravelTime += 10;
+					}
+					
+					CurrentTransportType = CurrentStackElement->RouteElement->LastTransportType;
+					CurrentRouteId = CurrentStackElement->RouteElement->RouteId;
+				}
+				CurrentStackElement = CurrentStackElement->Prev;
+			}
+			if(TotalTravelTime < *MinTravelTime)
+			{
+				*MinTravelTime = TotalTravelTime;
+			}
+		}
+		else
+		{
+			DFS(CurrentRoute->Dest, DestId, RouteStack, MinTravelTime);
+		}
+		
+		CurrentRoute = CurrentRoute->Next;
+		RouteStackElement *Top = Pop(&RouteStack);
+		SAFE_FREE(Top);
+	}
+	From->Visited = false;
+	return;
+}
+
+RouteStackElement *CreateStackElement(Route *RouteElement)
+{
+	RouteStackElement *NewElement = (RouteStackElement *)malloc(sizeof(RouteStackElement));
+	if(!NewElement)
+	{
+		printf("Failed to malloc new stack element\n");
+		return NULL;
+	}
+	NewElement->RouteElement = RouteElement;
+	NewElement->Prev = NULL;
+
+	return NewElement;
+}
+
+RouteStackElement *Push(RouteStackElement *Head, RouteStackElement *NewElement)
+{
+	if(!NewElement)
+		return Head;
+	if(!Head)
+		return NewElement;
+
+	NewElement->Prev = Head;
+
+	return NewElement;
+}
+
+RouteStackElement *Pop(RouteStackElement **Head)
+{
+	if(!Head || !*Head)
+		return NULL;
+
+	RouteStackElement *Top = *Head;
+	*Head = (*Head)->Prev;
+
+	return Top;
 }
 
